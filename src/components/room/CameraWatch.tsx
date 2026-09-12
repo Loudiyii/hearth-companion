@@ -9,8 +9,8 @@ const ELDER_ID = "marie";
 const SAMPLE_INTERVAL_MS = 4000;
 const CHECK_IN_WINDOW_MS = 20000;
 const COOLDOWN_MS = 60000;
-const MAX_WIDTH = 640;
-const JPEG_QUALITY = 0.6;
+const MAX_WIDTH = 1024;
+const JPEG_QUALITY = 0.85;
 
 interface VisionResult {
   posture: "standing" | "sitting" | "lying" | "on_floor" | "unknown";
@@ -59,7 +59,7 @@ export function CameraWatch({
 
     async function start() {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640 }, audio: false });
+        stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 } }, audio: false });
         if (cancelled) {
           stream.getTracks().forEach((t) => t.stop());
           return;

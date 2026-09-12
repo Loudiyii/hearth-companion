@@ -194,7 +194,7 @@ export function useLiveSession(
         const scene = sight?.scene ?? undefined;
         // Base64 expands ~4/3 over raw bytes, so ~200KB of base64 text is the
         // budget requested — comfortably under typical request body limits.
-        const imageBase64 = frame && frame.length < 200_000 ? frame : undefined;
+        const imageBase64 = frame && frame.length < 900_000 ? frame : undefined;
         const res = await fetch("/api/agent", {
           method: "POST",
           headers: { "Content-Type": "application/json" },

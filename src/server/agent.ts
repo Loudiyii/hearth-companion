@@ -160,7 +160,7 @@ export async function runAgent(
         { type: "text", text },
         {
           type: "image_url",
-          image_url: { url: `data:image/jpeg;base64,${imageBase64}`, detail: "low" },
+          image_url: { url: `data:image/jpeg;base64,${imageBase64}`, detail: "high" },
         },
       ]
     : text;
