@@ -33,8 +33,11 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const visionModel = process.env.OPENAI_VISION_MODEL ?? "gpt-5.6-luna";
     const completion = await getOpenAI().chat.completions.create({
-      model: process.env.OPENAI_VISION_MODEL ?? "gpt-4o-mini",
+      model: visionModel,
+      // gpt-5.x models reason by default; the frame loop needs the fast path
+      ...(visionModel.startsWith("gpt-5") ? { reasoning_effort: "none" as const } : {}),
       response_format: { type: "json_object" },
       messages: [
         {
