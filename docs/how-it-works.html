@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Hearth Companion — How it works</title>
+<style>
+  @page { size: A4; margin: 16mm 16mm 18mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: "Segoe UI", -apple-system, Helvetica, Arial, sans-serif; color: #182230; font-size: 10.5pt; line-height: 1.45; }
+  h1 { font-size: 24pt; margin: 0 0 4px; letter-spacing: -0.01em; }
+  h2 { font-size: 13pt; margin: 18px 0 8px; color: #0E7C86; text-transform: uppercase; letter-spacing: 0.06em; }
+  h3 { font-size: 11pt; margin: 0 0 4px; }
+  p { margin: 0 0 8px; }
+  .sub { color: #5B6672; font-size: 11pt; margin-bottom: 10px; }
+  .thesis { border-left: 4px solid #0E7C86; padding: 6px 12px; background: #EEF6F7; margin: 10px 0 14px; font-size: 11pt; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .card { border: 1px solid #D3DAE1; border-radius: 6px; padding: 10px 12px; break-inside: avoid; }
+  .card .n { font-family: Consolas, monospace; font-size: 9pt; color: #5B6672; }
+  .card.money { border-top: 3px solid #C9791A; }
+  .card.sight { border-top: 3px solid #0E7C86; }
+  .card.fall  { border-top: 3px solid #C43D2B; }
+  .say { font-style: italic; color: #3b4854; }
+  .flow { font-family: Consolas, monospace; font-size: 9pt; background: #F5F7F9; border: 1px solid #E1E6EB; border-radius: 6px; padding: 8px 10px; white-space: pre; margin: 6px 0 10px; break-inside: avoid; }
+  table { border-collapse: collapse; width: 100%; font-size: 9.5pt; }
+  th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid #E1E6EB; vertical-align: top; }
+  th { color: #5B6672; font-weight: 600; font-size: 8.5pt; text-transform: uppercase; letter-spacing: 0.05em; }
+  ul { margin: 0 0 8px 18px; padding: 0; }
+  li { margin: 2px 0; }
+  .rules li b { color: #182230; }
+  .links { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 20px; font-size: 9.5pt; }
+  .links b { display: inline-block; width: 70px; color: #5B6672; }
+  .page-break { break-before: page; }
+  .foot { margin-top: 14px; color: #5B6672; font-size: 8.5pt; border-top: 1px solid #E1E6EB; padding-top: 6px; }
+  svg text { font-family: "Segoe UI", Helvetica, Arial, sans-serif; font-size: 9.5px; fill: #182230; }
+  svg .t { font-weight: 600; font-size: 10.5px; }
+  svg .m { fill: #5B6672; font-size: 8.5px; }
+  svg .box { fill: #fff; stroke: #B8C2CC; stroke-width: 1; }
+  svg .panel { fill: #F5F7F9; stroke: #D3DAE1; }
+  svg .e { stroke: #182230; stroke-width: 1.1; fill: none; }
+  svg .money { stroke: #C9791A; stroke-width: 1.8; fill: none; }
+</style>
+</head>
+<body>
+
+<h1>Hearth Companion</h1>
+<div class="sub">A home companion for an older person living alone — it sees, talks, runs her errands within limits her family set, and asks her before it ever alarms anyone.</div>
+
+<div class="thesis"><b>The idea: bounded agency.</b> AI agents are about to start acting — and spending — for people. Hearth acts freely within limits, stops and asks a relative above them, and brings a human in only when it matters. Elder care is the case; the pattern is general.</div>
+
+<h2>What it does — three flows</h2>
+<div class="grid3">
+  <div class="card money">
+    <div class="n">FLOW 1 · MONEY</div>
+    <h3>Groceries over budget</h3>
+    <p class="say">"Order my groceries for the week."</p>
+    <p>Hearth builds her usual basket (€84). It's over the €60 weekly limit, so it <b>stops and asks</b>: Claire gets the basket and the excess on Telegram with <b>Approve / Reject</b>. One tap approves exactly that purchase, once, for 15 minutes → Stripe charge → Hearth tells Marie, with the delivery time. A second tap charges nothing.</p>
+  </div>
+  <div class="card sight">
+    <div class="n">FLOW 2 · SIGHT</div>
+    <h3>It can see her</h3>
+    <p class="say">"Can you see me? Do I have my glasses on?"</p>
+    <p>The camera's latest frame and a one-line scene description travel with every question, so Hearth answers from what it actually sees. It only talks about the room when asked — never narrates on its own, never identifies people.</p>
+  </div>
+  <div class="card fall">
+    <div class="n">FLOW 3 · FALL</div>
+    <h3>Asks first, then family</h3>
+    <p class="say">"Marie? I noticed you're on the floor. Are you okay?"</p>
+    <p>Two consecutive "on the floor" readings (~4 s) → a heads-up to Claire → Hearth <b>speaks first</b>. "I'm fine" closes it. Silence or "I'm not okay… yes" → Telegram alert with a <b>photo of the room</b> and an "I'm on it" button. A false alarm costs one spoken question.</p>
+  </div>
+</div>
+
+<h2>How it works</h2>
+<svg viewBox="0 0 700 300" width="100%" role="img" aria-label="System map">
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#182230"/></marker>
+  <marker id="am" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#C9791A"/></marker></defs>
+  <!-- room -->
+  <rect x="10" y="40" width="200" height="120" rx="6" class="panel"/>
+  <text x="22" y="58" class="t">Her living room (one laptop)</text>
+  <rect x="22" y="68" width="176" height="24" rx="4" class="box"/><text x="30" y="84">Camera · 3-frame burst every 2 s</text>
+  <rect x="22" y="98" width="176" height="24" rx="4" class="box"/><text x="30" y="114">Voice · GPT-Live, wakes when she talks</text>
+  <rect x="22" y="128" width="176" height="24" rx="4" class="box"/><text x="30" y="144">Sleeps after 45 s of silence</text>
+  <!-- backend -->
+  <rect x="250" y="40" width="200" height="120" rx="6" class="box"/>
+  <text x="262" y="58" class="t">Backend (Next.js on Vercel)</text>
+  <text x="262" y="78" class="m">Every tool and every rule lives here:</text>
+  <text x="262" y="94">basket · budget check · approvals</text>
+  <text x="262" y="108">payments · fall check-in · alerts</text>
+  <text x="262" y="122">vision (gpt-5.6-luna) · agent (gpt-4.1-mini)</text>
+  <text x="262" y="146" class="m">Voice model never spends anything.</text>
+  <!-- family -->
+  <rect x="490" y="40" width="200" height="120" rx="6" class="panel"/>
+  <text x="502" y="58" class="t">Her family (Claire's phone)</text>
+  <rect x="502" y="68" width="176" height="24" rx="4" class="box"/><text x="510" y="84">Telegram · Approve / Reject / I'm on it</text>
+  <rect x="502" y="98" width="176" height="24" rx="4" class="box"/><text x="510" y="114">Photo alerts · heads-ups · all-clears</text>
+  <rect x="502" y="128" width="176" height="24" rx="4" class="box"/><text x="510" y="144">Live dashboard (approvals, feed, alerts)</text>
+  <!-- arrows -->
+  <line x1="210" y1="90" x2="246" y2="90" class="e" marker-end="url(#a)"/><text x="212" y="82" class="m">asks</text>
+  <line x1="246" y1="120" x2="210" y2="120" class="e" marker-end="url(#a)"/><text x="214" y="134" class="m">answers</text>
+  <line x1="450" y1="90" x2="486" y2="90" class="money" marker-end="url(#am)"/><text x="452" y="80" class="m">over budget</text>
+  <line x1="486" y1="120" x2="450" y2="120" class="money" marker-end="url(#am)"/><text x="456" y="134" class="m">one tap</text>
+  <!-- data -->
+  <rect x="250" y="200" width="200" height="60" rx="6" class="box"/>
+  <text x="262" y="220" class="t">Database (Supabase)</text>
+  <text x="262" y="236">source of truth for money, incidents, log</text>
+  <text x="262" y="250" class="m">every screen follows it live</text>
+  <line x1="350" y1="160" x2="350" y2="196" class="e" marker-end="url(#a)" marker-start="url(#a)"/>
+  <rect x="490" y="200" width="200" height="60" rx="6" class="box"/>
+  <text x="502" y="220" class="t">Payments (Stripe, test mode)</text>
+  <text x="502" y="236">one charge per approval, never twice</text>
+  <line x1="450" y1="230" x2="486" y2="230" class="money" marker-end="url(#am)"/>
+  <rect x="10" y="200" width="200" height="60" rx="6" class="box"/>
+  <text x="22" y="220" class="t">Timers (Trigger.dev)</text>
+  <text x="22" y="236">approval expiry notice · silence timer</text>
+  <text x="22" y="250" class="m">never on the correctness path</text>
+  <line x1="210" y1="230" x2="246" y2="230" class="e" marker-end="url(#a)"/>
+</svg>
+
+<h2>What happens when she falls — the timeline</h2>
+<div class="flow">t = 0 s    camera sees her on the floor (sequence of frames, not a still — a fall, not sitting down)
+t ≈ 4 s    second confirmation → incident opened · Claire gets "⚠️ Possible fall — checking with Marie now"
+t ≈ 5 s    Hearth speaks first: "Marie? I noticed you're on the floor. Are you okay?"
+t ≈ 5–25 s listens
+           "I'm fine, I dropped my glasses"  → resolved · Claire gets "✅ False alarm"
+           silence, or "I'm not okay / help / yes" → alert with room photo + [I'm on it]
+later      Claire taps I'm on it → Hearth: "Claire has seen it and is on her way."</div>
+
+<div class="page-break"></div>
+
+<h2>The rules — written in code, not left to the AI</h2>
+<ul class="rules">
+  <li><b>The camera never alarms directly.</b> Two confirmations to ask; escalate only on silence, a request for help, or an explicit "yes".</li>
+  <li><b>The vulnerable person is never the sole approver of a large spend.</b> Anything over her weekly limit goes to a relative.</li>
+  <li><b>One approval, one charge.</b> An approval is consumed in a single atomic database statement; a second tap, an expired approval, or a changed basket charges nothing. Payments are idempotent.</li>
+  <li><b>Budget read from the database every time</b> — a limit changed on the dashboard applies immediately.</li>
+  <li><b>Emergency services are never called automatically.</b> A human decides.</li>
+  <li><b>Sight is answered, not narrated.</b> It never claims it can't see, and never identifies anyone — it describes what's visible.</li>
+  <li><b>Privacy.</b> Frames are analysed for an event and not stored; only the frame attached to an alert leaves the house — to the family.</li>
+  <li><b>Designed for a real impaired user:</b> no blinking lights, nothing to press, repeated questions answered as kindly the fortieth time as the first.</li>
+</ul>
+
+<h2>The screens</h2>
+<table>
+  <tr><th>Screen</th><th>For</th><th>What it shows</th></tr>
+  <tr><td><b>/room</b></td><td>Marie</td><td>Dark, calm, huge text. No buttons. Wakes when she talks: Resting · Listening · Thinking · Speaking · Checking on you.</td></tr>
+  <tr><td><b>/monitor</b></td><td>Caregiver / demo</td><td>Live camera, current state, 5-step workflow (Surveillance → Chute détectée → Attente → Appel → Alerte), event journal, conversation log, demo controls, load a recorded clip.</td></tr>
+  <tr><td><b>/family</b></td><td>Claire</td><td>Pending approvals with countdown and Approve/Reject, live activity feed, alerts, and an assistant ("What did Mom order this week?").</td></tr>
+</table>
+
+<h2>Built with</h2>
+<table>
+  <tr><th>Piece</th><th>What</th><th>Why</th></tr>
+  <tr><td>OpenAI</td><td>GPT-Live voice · gpt-5.6-luna vision · gpt-4.1-mini tools</td><td>The voice model holds the conversation and <i>delegates</i> work to our backend — tools and money stay under our rules.</td></tr>
+  <tr><td>Supabase</td><td>Postgres + Realtime</td><td>Source of truth; the database is the event bus every screen follows.</td></tr>
+  <tr><td>Vercel</td><td>Next.js app</td><td>Public HTTPS for the Telegram webhook; deploys on every push.</td></tr>
+  <tr><td>Telegram</td><td>Family channel</td><td>Approvals, heads-ups, photo alerts, one-tap buttons.</td></tr>
+  <tr><td>Stripe (test)</td><td>Payments</td><td>Real charge mechanics against a simulated shop.</td></tr>
+  <tr><td>Trigger.dev · CopilotKit</td><td>Timers · dashboard assistant</td><td>Expiry notice and silence timer; "what did Mom order?"</td></tr>
+</table>
+
+<h2>Links</h2>
+<div class="links">
+  <div><b>Live</b> https://hearth-companion-cyan.vercel.app</div>
+  <div><b>Code</b> https://github.com/Loudiyii/hearth-companion</div>
+  <div><b>Screens</b> /room · /monitor · /family</div>
+  <div><b>Built at</b> AI Tinkerers "Agents, Everywhere" — Paris, 12 Sept 2026</div>
+</div>
+
+<div class="foot">Hearth Companion · Act within limits · Ask above them · Bring a human in only when it matters. Stripe is test mode against a simulated shop; emergency calls are never automatic.</div>
+
+</body>
+</html>
