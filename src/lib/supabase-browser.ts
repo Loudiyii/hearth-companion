@@ -74,8 +74,10 @@ export function useRealtimeTable<T extends { id: string }>(
 
     load();
 
+    // Unique per hook instance: two components watching the same table would otherwise
+    // share one channel and `.on()` throws once it is already subscribed.
     const channel = supabase
-      .channel(`realtime:${table}:${filterKey}`)
+      .channel(`realtime:${table}:${filterKey}:${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table },
