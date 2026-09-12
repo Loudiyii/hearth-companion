@@ -20,7 +20,7 @@ export function TextFallback({
     const trimmed = text.trim();
     if (!trimmed || busy) return;
     setBusy(true);
-    onStatusChange("Thinking");
+    onStatusChange("Thinking…");
     setText("");
     try {
       const res = await fetch("/api/agent", {

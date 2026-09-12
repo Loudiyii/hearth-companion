@@ -1,4 +1,10 @@
-export type CompanionStatus = "Listening" | "Thinking" | "Speaking" | "Checking on you…";
+export type CompanionStatus =
+  | "Resting"
+  | "Waking…"
+  | "Listening"
+  | "Thinking…"
+  | "Speaking"
+  | "Checking on you…";
 
 export function StatusWord({ status }: { status: CompanionStatus }) {
   return (

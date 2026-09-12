@@ -21,10 +21,22 @@ interface VisionResult {
 
 const FALL_POSTURES = new Set(["on_floor", "lying"]);
 
+export interface FloorCandidatePayload {
+  incidentId: string;
+  question: string;
+}
+
 export function CameraWatch({
   onStatusChange,
+  onFloorCandidate,
 }: {
-  onStatusChange: (status: CompanionStatus | null) => void;
+  /** Fallback self-contained UI status (unused once onFloorCandidate is provided). */
+  onStatusChange?: (status: CompanionStatus | null) => void;
+  /**
+   * When provided, a candidate is handed off to the caller (CompanionController)
+   * instead of CameraWatch speaking the question and listening for a reply itself.
+   */
+  onFloorCandidate?: (payload: FloorCandidatePayload) => void;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -81,7 +93,7 @@ export function CameraWatch({
       if (inIncidentRef.current) return;
       inIncidentRef.current = true;
       setChecking(true);
-      onStatusChange("Checking on you…");
+      onStatusChange?.("Checking on you…");
       try {
         const event: CompanionEvent = {
           type: "person_on_floor_candidate",
@@ -99,9 +111,17 @@ export function CameraWatch({
         const incidentId: string | undefined = data.incidentId;
         const question: string = data.question ?? "Marie? Are you okay?";
 
-        onStatusChange("Speaking");
+        if (onFloorCandidate && incidentId) {
+          // The controller now owns speaking the question, listening for a
+          // reply, and posting the response — it needs an open GPT-Live
+          // session to do that with a real voice.
+          onFloorCandidate({ incidentId, question });
+          return;
+        }
+
+        onStatusChange?.("Speaking");
         await speak(question);
-        onStatusChange("Checking on you…");
+        onStatusChange?.("Checking on you…");
 
         const response = await listenForReply(CHECK_IN_WINDOW_MS);
 
@@ -118,11 +138,11 @@ export function CameraWatch({
         consecutiveFallsRef.current = 0;
         cooldownUntilRef.current = Date.now() + COOLDOWN_MS;
         setChecking(false);
-        onStatusChange("Listening");
+        onStatusChange?.("Listening");
         inIncidentRef.current = false;
       }
     },
-    [onStatusChange]
+    [onStatusChange, onFloorCandidate]
   );
 
   useEffect(() => {

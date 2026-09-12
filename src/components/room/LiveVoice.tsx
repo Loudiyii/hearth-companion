@@ -1,21 +1,20 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const ELDER_ID = "marie";
 const MAX_BUFFER_CHARS = 600;
 const MAX_COMMENTARY_CHARS = 1500;
+/** ~500 tokens, approximated at 4 chars/token. */
+const MAX_INSTRUCTIONS_CHARS = 2000;
 const ICE_GATHERING_TIMEOUT_MS = 10_000;
+/** Gap in input-transcript deltas that we treat as "the user finished a turn". */
+const TURN_GAP_MS = 1200;
+/** How long a failed connection attempt keeps the hook in the "error" display state. */
+const ERROR_DISPLAY_MS = 3000;
 
-type LiveStatus = "Connecting…" | "Listening" | "Thinking…" | "Speaking" | "Ended";
-type ActivityKind = "listening" | "thinking" | "speaking";
-
-function statusToActivity(status: LiveStatus): ActivityKind | null {
-  if (status === "Listening") return "listening";
-  if (status === "Thinking…") return "thinking";
-  if (status === "Speaking") return "speaking";
-  return null;
-}
+export type LiveSessionState = "asleep" | "connecting" | "awake" | "closing" | "error";
+export type LiveActivityKind = "listening" | "thinking" | "speaking";
 
 function waitForIceGatheringComplete(pc: RTCPeerConnection): Promise<void> {
   if (pc.iceGatheringState === "complete") return Promise.resolve();
@@ -35,13 +34,31 @@ function waitForIceGatheringComplete(pc: RTCPeerConnection): Promise<void> {
   });
 }
 
-export function LiveVoice({
-  onActivity,
-}: {
-  onActivity?: (kind: ActivityKind) => void;
-}) {
-  const [running, setRunning] = useState(false);
-  const [status, setStatus] = useState<LiveStatus>("Ended");
+export interface UseLiveSessionResult {
+  state: LiveSessionState;
+  userCaption: string;
+  assistantCaption: string;
+  errorMessage: string | null;
+  /** Reads the epoch ms of the last transcript/delegation activity. Call from effects/handlers only. */
+  getLastActivityAt: () => number;
+  start: (opts?: { instructionsAppend?: string }) => Promise<void>;
+  end: () => void;
+  sendInstructions: (content: string) => void;
+  /** Fires with the accumulated transcript once a user turn ends (~1.2s silence gap). */
+  onUserUtterance: (cb: (text: string) => void) => () => void;
+}
+
+/**
+ * Drives a GPT-Live WebRTC session imperatively so a parent state machine
+ * (CompanionController) can open/close it in response to wake/sleep events
+ * instead of a human pressing "Start voice". The caller owns the <audio>
+ * element and passes its ref in so remote audio playback is wired up.
+ */
+export function useLiveSession(
+  onActivity: ((kind: LiveActivityKind) => void) | undefined,
+  audioRef: React.RefObject<HTMLAudioElement | null>
+): UseLiveSessionResult {
+  const [state, setState] = useState<LiveSessionState>("asleep");
   const [userCaption, setUserCaption] = useState("");
   const [assistantCaption, setAssistantCaption] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -49,204 +66,274 @@ export function LiveVoice({
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const dcRef = useRef<RTCDataChannel | null>(null);
   const micRef = useRef<MediaStream | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const userBufferRef = useRef("");
   const assistantTextRef = useRef("");
+  const lastActivityAtRef = useRef(0);
+  const pendingInstructionsRef = useRef<string | null>(null);
+  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  function setStatusAndNotify(next: LiveStatus) {
-    setStatus(next);
-    const activity = statusToActivity(next);
-    if (activity) onActivity?.(activity);
-  }
+  const turnBufferRef = useRef("");
+  const turnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const utteranceSubscribersRef = useRef(new Set<(text: string) => void>());
 
-  function send(payload: Record<string, unknown>) {
+  const onActivityRef = useRef(onActivity);
+  useEffect(() => {
+    onActivityRef.current = onActivity;
+  });
+
+  const getLastActivityAt = useCallback(() => lastActivityAtRef.current, []);
+
+  const notify = useCallback((kind: LiveActivityKind) => {
+    onActivityRef.current?.(kind);
+  }, []);
+
+  const markActivity = useCallback(() => {
+    lastActivityAtRef.current = Date.now();
+  }, []);
+
+  const send = useCallback((payload: Record<string, unknown>) => {
     const dc = dcRef.current;
     if (dc && dc.readyState === "open") {
       dc.send(JSON.stringify(payload));
     }
-  }
+  }, []);
 
-  async function handleDelegation(delegationId: string) {
-    setStatusAndNotify("Thinking…");
-    const text = userBufferRef.current.trim();
-    userBufferRef.current = "";
-    try {
-      const res = await fetch("/api/agent", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ elderId: ELDER_ID, text: text || "(no speech captured)" }),
-      });
-      if (!res.ok) throw new Error("agent request failed");
-      const data = await res.json();
-      const reply: string = typeof data.reply === "string" ? data.reply : "Done.";
+  const sendInstructions = useCallback(
+    (content: string) => {
       send({
-        type: "session.commentary.append",
+        type: "session.instructions.append",
         event_id: crypto.randomUUID(),
-        delegation_id: delegationId,
-        content: reply.slice(0, MAX_COMMENTARY_CHARS),
+        delegation_id: null,
+        content: content.slice(0, MAX_INSTRUCTIONS_CHARS),
       });
-    } catch {
-      send({
-        type: "session.commentary.append",
-        event_id: crypto.randomUUID(),
-        delegation_id: delegationId,
-        content: "I couldn't reach the house system just now. Let's try again in a moment.",
-      });
-    }
-  }
+    },
+    [send]
+  );
 
-  function handleServerEvent(raw: string) {
-    let event: { type?: string; [key: string]: unknown } | null = null;
-    try {
-      event = JSON.parse(raw);
-    } catch {
-      return;
-    }
-    if (!event || typeof event.type !== "string") return;
+  const onUserUtterance = useCallback((cb: (text: string) => void) => {
+    utteranceSubscribersRef.current.add(cb);
+    return () => {
+      utteranceSubscribersRef.current.delete(cb);
+    };
+  }, []);
 
-    switch (event.type) {
-      case "session.started": {
-        setStatusAndNotify("Listening");
-        break;
+  const scheduleTurnBoundary = useCallback(() => {
+    if (turnTimerRef.current) clearTimeout(turnTimerRef.current);
+    turnTimerRef.current = setTimeout(() => {
+      const text = turnBufferRef.current.trim();
+      turnBufferRef.current = "";
+      if (text) {
+        utteranceSubscribersRef.current.forEach((cb) => cb(text));
       }
-      case "session.input_transcript.delta": {
-        const delta = typeof event.delta === "string" ? event.delta : "";
-        userBufferRef.current = (userBufferRef.current + delta).slice(-MAX_BUFFER_CHARS);
-        setUserCaption(userBufferRef.current);
-        setStatusAndNotify("Listening");
-        break;
-      }
-      case "session.output_transcript.delta": {
-        const delta = typeof event.delta === "string" ? event.delta : "";
-        assistantTextRef.current += delta;
-        setAssistantCaption(assistantTextRef.current);
-        setStatusAndNotify("Speaking");
-        break;
-      }
-      case "session.delegation.created": {
-        const delegation = event.delegation as { id?: string; target?: string } | undefined;
-        if (delegation?.target === "client" && typeof delegation.id === "string") {
-          void handleDelegation(delegation.id);
-        }
-        break;
-      }
-      case "session.closed": {
-        setStatusAndNotify("Ended");
-        cleanup();
-        break;
-      }
-      case "error": {
-        const errorObj = event.error as { message?: string } | undefined;
-        setErrorMessage(errorObj?.message ?? "Voice session reported an error.");
-        break;
-      }
-      default:
-        break;
-    }
-  }
+    }, TURN_GAP_MS);
+  }, []);
 
-  function cleanup() {
+  const cleanup = useCallback(() => {
     dcRef.current?.close();
     dcRef.current = null;
     pcRef.current?.close();
     pcRef.current = null;
     micRef.current?.getTracks().forEach((track) => track.stop());
     micRef.current = null;
-    setRunning(false);
-  }
-
-  async function start() {
-    setErrorMessage(null);
-    setUserCaption("");
-    setAssistantCaption("");
-    userBufferRef.current = "";
-    assistantTextRef.current = "";
-    setStatusAndNotify("Connecting…");
-    setRunning(true);
-
-    try {
-      const pc = new RTCPeerConnection();
-      pcRef.current = pc;
-
-      pc.ontrack = (event) => {
-        if (audioRef.current) {
-          audioRef.current.srcObject = event.streams[0];
-        }
-      };
-
-      const dc = pc.createDataChannel("oai-events");
-      dcRef.current = dc;
-      dc.addEventListener("message", (event) => handleServerEvent(event.data));
-      dc.addEventListener("close", () => {
-        setStatusAndNotify("Ended");
-      });
-      dc.addEventListener("error", () => {
-        setErrorMessage("Voice connection had a data channel error.");
-      });
-
-      const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
-      micRef.current = mic;
-      mic.getTracks().forEach((track) => pc.addTrack(track, mic));
-
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      await waitForIceGatheringComplete(pc);
-
-      const localSdp = pc.localDescription?.sdp;
-      if (!localSdp) throw new Error("no local SDP produced");
-
-      const res = await fetch("/api/live/session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sdp: localSdp }),
-      });
-      if (!res.ok) throw new Error("live session request failed");
-      const result = await res.json();
-      const answerSdp: string | undefined = result?.transport?.sdp;
-      if (!answerSdp) throw new Error("no answer SDP returned");
-
-      await pc.setRemoteDescription({ type: "answer", sdp: answerSdp });
-    } catch {
-      setErrorMessage("Voice call didn't connect — you can still type below.");
-      setStatusAndNotify("Ended");
-      cleanup();
+    if (turnTimerRef.current) {
+      clearTimeout(turnTimerRef.current);
+      turnTimerRef.current = null;
     }
-  }
+    turnBufferRef.current = "";
+  }, []);
 
-  function end() {
-    send({ type: "session.close" });
-    setStatusAndNotify("Ended");
-    cleanup();
-  }
-
-  return (
-    <div className="flex w-full max-w-2xl flex-col items-center gap-3">
-      <audio ref={audioRef} autoPlay />
-      {running && <p className="text-sm text-zinc-500">{status}</p>}
-      {(userCaption || assistantCaption) && (
-        <div className="w-full space-y-1 text-center">
-          {userCaption && <p className="text-lg text-zinc-500">Marie: {userCaption}</p>}
-          {assistantCaption && <p className="text-lg text-zinc-300">Hearth: {assistantCaption}</p>}
-        </div>
-      )}
-      {running ? (
-        <button
-          type="button"
-          onClick={end}
-          className="rounded-full border border-zinc-700 px-6 py-2 text-sm text-zinc-300"
-        >
-          End
-        </button>
-      ) : (
-        <button
-          type="button"
-          onClick={() => void start()}
-          className="rounded-full bg-zinc-100 px-6 py-2 text-sm font-medium text-zinc-900"
-        >
-          Start voice
-        </button>
-      )}
-      {errorMessage && <p className="text-xs text-zinc-600">{errorMessage}</p>}
-    </div>
+  const handleDelegation = useCallback(
+    async (delegationId: string) => {
+      markActivity();
+      notify("thinking");
+      const text = userBufferRef.current.trim();
+      userBufferRef.current = "";
+      try {
+        const res = await fetch("/api/agent", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ elderId: ELDER_ID, text: text || "(no speech captured)" }),
+        });
+        if (!res.ok) throw new Error("agent request failed");
+        const data = await res.json();
+        const reply: string = typeof data.reply === "string" ? data.reply : "Done.";
+        markActivity();
+        send({
+          type: "session.commentary.append",
+          event_id: crypto.randomUUID(),
+          delegation_id: delegationId,
+          content: reply.slice(0, MAX_COMMENTARY_CHARS),
+        });
+      } catch {
+        markActivity();
+        send({
+          type: "session.commentary.append",
+          event_id: crypto.randomUUID(),
+          delegation_id: delegationId,
+          content: "I couldn't reach the house system just now. Let's try again in a moment.",
+        });
+      }
+    },
+    [markActivity, notify, send]
   );
+
+  const handleServerEvent = useCallback(
+    (raw: string) => {
+      let event: { type?: string; [key: string]: unknown } | null = null;
+      try {
+        event = JSON.parse(raw);
+      } catch {
+        return;
+      }
+      if (!event || typeof event.type !== "string") return;
+
+      switch (event.type) {
+        case "session.started": {
+          setState("awake");
+          notify("listening");
+          if (pendingInstructionsRef.current) {
+            sendInstructions(pendingInstructionsRef.current);
+            pendingInstructionsRef.current = null;
+          }
+          break;
+        }
+        case "session.input_transcript.delta": {
+          const delta = typeof event.delta === "string" ? event.delta : "";
+          markActivity();
+          userBufferRef.current = (userBufferRef.current + delta).slice(-MAX_BUFFER_CHARS);
+          setUserCaption(userBufferRef.current);
+          turnBufferRef.current += delta;
+          scheduleTurnBoundary();
+          notify("listening");
+          break;
+        }
+        case "session.output_transcript.delta": {
+          const delta = typeof event.delta === "string" ? event.delta : "";
+          markActivity();
+          assistantTextRef.current += delta;
+          setAssistantCaption(assistantTextRef.current);
+          notify("speaking");
+          break;
+        }
+        case "session.delegation.created": {
+          markActivity();
+          const delegation = event.delegation as { id?: string; target?: string } | undefined;
+          if (delegation?.target === "client" && typeof delegation.id === "string") {
+            void handleDelegation(delegation.id);
+          }
+          break;
+        }
+        case "session.closed": {
+          cleanup();
+          setState("asleep");
+          break;
+        }
+        case "error": {
+          const errorObj = event.error as { message?: string } | undefined;
+          setErrorMessage(errorObj?.message ?? "Voice session reported an error.");
+          break;
+        }
+        default:
+          break;
+      }
+    },
+    [cleanup, handleDelegation, markActivity, notify, scheduleTurnBoundary, sendInstructions]
+  );
+
+  const start = useCallback(
+    async (opts?: { instructionsAppend?: string }) => {
+      if (errorTimerRef.current) {
+        clearTimeout(errorTimerRef.current);
+        errorTimerRef.current = null;
+      }
+      setErrorMessage(null);
+      setUserCaption("");
+      setAssistantCaption("");
+      userBufferRef.current = "";
+      assistantTextRef.current = "";
+      turnBufferRef.current = "";
+      pendingInstructionsRef.current = opts?.instructionsAppend ?? null;
+      setState("connecting");
+      markActivity();
+
+      try {
+        const pc = new RTCPeerConnection();
+        pcRef.current = pc;
+
+        pc.ontrack = (event) => {
+          if (audioRef.current) {
+            audioRef.current.srcObject = event.streams[0];
+          }
+        };
+
+        const dc = pc.createDataChannel("oai-events");
+        dcRef.current = dc;
+        dc.addEventListener("message", (event) => handleServerEvent(event.data));
+        dc.addEventListener("close", () => {
+          setState((prev) => (prev === "closing" || prev === "awake" ? "asleep" : prev));
+        });
+        dc.addEventListener("error", () => {
+          setErrorMessage("Voice connection had a data channel error.");
+        });
+
+        const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
+        micRef.current = mic;
+        mic.getTracks().forEach((track) => pc.addTrack(track, mic));
+
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        await waitForIceGatheringComplete(pc);
+
+        const localSdp = pc.localDescription?.sdp;
+        if (!localSdp) throw new Error("no local SDP produced");
+
+        const res = await fetch("/api/live/session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sdp: localSdp }),
+        });
+        if (!res.ok) throw new Error("live session request failed");
+        const result = await res.json();
+        const answerSdp: string | undefined = result?.transport?.sdp;
+        if (!answerSdp) throw new Error("no answer SDP returned");
+
+        await pc.setRemoteDescription({ type: "answer", sdp: answerSdp });
+      } catch {
+        setErrorMessage("Voice call didn't connect — you can still type below.");
+        cleanup();
+        setState("error");
+        errorTimerRef.current = setTimeout(() => {
+          setState((prev) => (prev === "error" ? "asleep" : prev));
+        }, ERROR_DISPLAY_MS);
+      }
+    },
+    [audioRef, cleanup, handleServerEvent, markActivity]
+  );
+
+  const end = useCallback(() => {
+    setState((prev) => (prev === "asleep" ? prev : "closing"));
+    send({ type: "session.close" });
+    cleanup();
+    setState("asleep");
+  }, [cleanup, send]);
+
+  useEffect(() => {
+    return () => {
+      cleanup();
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return {
+    state,
+    userCaption,
+    assistantCaption,
+    errorMessage,
+    getLastActivityAt,
+    start,
+    end,
+    sendInstructions,
+    onUserUtterance,
+  };
 }
