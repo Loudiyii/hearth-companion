@@ -148,7 +148,7 @@ export async function runAgent(
 ): Promise<{ reply: string; toolCalls: ToolCallRecord[] }> {
   const model = process.env.OPENAI_AGENT_MODEL ?? "gpt-4o-mini";
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-    { role: "system", content: SYSTEM_PROMPT },
+    { role: "system", content: `${SYSTEM_PROMPT}\nToday is ${new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}.` },
     { role: "user", content: text },
   ];
   const toolCalls: ToolCallRecord[] = [];

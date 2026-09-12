@@ -2,8 +2,6 @@
 
 import { useRef, useState } from "react";
 
-const DEFAULT_MODEL = "gpt-4o-realtime-preview";
-
 type VoiceState = "idle" | "connecting" | "connected" | "error";
 
 export function RealtimeVoice() {
@@ -19,8 +17,7 @@ export function RealtimeVoice() {
       const tokenRes = await fetch("/api/realtime/token", { method: "POST" });
       if (!tokenRes.ok) throw new Error("token request failed");
       const session = await tokenRes.json();
-      const clientSecret: string | undefined = session?.client_secret?.value;
-      const model: string = session?.model ?? DEFAULT_MODEL;
+      const clientSecret: string | undefined = session?.value ?? session?.client_secret?.value;
       if (!clientSecret) throw new Error("no client secret returned");
 
       const pc = new RTCPeerConnection();
@@ -41,7 +38,7 @@ export function RealtimeVoice() {
       await pc.setLocalDescription(offer);
 
       const sdpRes = await fetch(
-        `https://api.openai.com/v1/realtime?model=${encodeURIComponent(model)}`,
+        "https://api.openai.com/v1/realtime/calls",
         {
           method: "POST",
           body: offer.sdp,

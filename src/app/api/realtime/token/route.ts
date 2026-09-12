@@ -12,16 +12,21 @@ export async function POST() {
   }
 
   try {
-    const res = await fetch("https://api.openai.com/v1/realtime/sessions", {
+    // GA Realtime API: mint an ephemeral client secret; the browser then POSTs its SDP to /v1/realtime/calls
+    const res = await fetch("https://api.openai.com/v1/realtime/client_secrets", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: process.env.OPENAI_REALTIME_MODEL ?? "gpt-4o-realtime-preview",
-        voice: "alloy",
-        instructions: COMPANION_INSTRUCTIONS,
+        expires_after: { anchor: "created_at", seconds: 600 },
+        session: {
+          type: "realtime",
+          model: process.env.OPENAI_REALTIME_MODEL ?? "gpt-realtime-2.1-mini",
+          instructions: COMPANION_INSTRUCTIONS,
+          audio: { output: { voice: "alloy" } },
+        },
       }),
     });
 
@@ -30,7 +35,7 @@ export async function POST() {
       return NextResponse.json({ error: data?.error?.message ?? "Realtime session failed" }, { status: 502 });
     }
 
-    return NextResponse.json(data);
+    return NextResponse.json({ value: data.value, expires_at: data.expires_at, model: data.session?.model });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ error: message }, { status: 500 });
