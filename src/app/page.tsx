@@ -15,6 +15,12 @@ export default function Home() {
       >
         Family
       </Link>
+      <Link
+        href="/monitor"
+        className="flex w-full max-w-md items-center justify-center rounded-2xl border border-zinc-300 bg-white px-10 py-16 text-3xl font-medium text-zinc-900 transition-colors hover:bg-zinc-100"
+      >
+        Monitor
+      </Link>
     </div>
   );
 }
