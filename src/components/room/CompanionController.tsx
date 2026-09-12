@@ -169,7 +169,11 @@ export function CompanionController({
       processedIdsRef.current.add(row.id);
       if (row.createdAt > cutoffAtRef.current!) cutoffAtRef.current = row.createdAt;
 
-      const sentence = OUTCOME_SENTENCES[row.kind];
+      const base = OUTCOME_SENTENCES[row.kind];
+      const sentence =
+        base && row.kind === "payment_succeeded"
+          ? `${base} ${row.message.replace(/^Payment went through\.\s*/, "")}`.trim()
+          : base;
       if (!sentence) continue;
 
       const now = Date.now();

@@ -82,7 +82,8 @@ export async function checkout(
       stripePaymentIntentId: result.id,
       receiptUrl: result.receiptUrl ?? undefined,
     });
-    await logActivity(basket.elderId, "payment_succeeded", "Payment went through.", succeeded.id);
+    const etaText = deliveryEtaText();
+    await logActivity(basket.elderId, "payment_succeeded", `Payment went through. ${etaText}`, succeeded.id);
     return { ok: true, payment: succeeded };
   } catch (err) {
     const failureReason = err instanceof Error ? err.message : String(err);
@@ -90,4 +91,11 @@ export async function checkout(
     await logActivity(basket.elderId, "payment_failed", "Payment failed.", failed.id);
     return { ok: false, reason: "payment_failed", approval: approval ?? undefined, payment: failed };
   }
+}
+
+/** The simulated shop delivers about two hours after payment. */
+function deliveryEtaText(): string {
+  const eta = new Date(Date.now() + 2 * 60 * 60 * 1000);
+  const hhmm = eta.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
+  return `Delivery in about two hours, around ${hhmm}.`;
 }
