@@ -30,6 +30,9 @@ export async function handleTap({
       return { ok: false, message: "This approval has expired.", approval: approval ?? undefined };
     }
     if (outcome === "already_decided") {
+      if (approval) {
+        await logActivity(approval.elderId, "approval_duplicate_tap_ignored", "Second tap ignored — already handled.", approval.id);
+      }
       return { ok: false, message: "This approval was already decided.", approval: approval ?? undefined };
     }
 
@@ -59,6 +62,9 @@ export async function handleTap({
       return { ok: false, message: "This approval has expired.", approval: approval ?? undefined };
     }
     if (outcome === "already_decided") {
+      if (approval) {
+        await logActivity(approval.elderId, "approval_duplicate_tap_ignored", "Second tap ignored — already handled.", approval.id);
+      }
       return { ok: false, message: "This approval was already decided.", approval: approval ?? undefined };
     }
 

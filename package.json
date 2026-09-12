@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:money": "tsx scripts/acceptance-double-tap.ts && tsx scripts/acceptance-edge-cases.ts"
   },
   "dependencies": {
     "@auth0/nextjs-auth0": "^4.29.0",
