@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="520" viewBox="0 0 1600 520" role="img" aria-labelledby="title description">
+  <title id="title">Hearth Companion</title>
+  <desc id="description">Everyday independence. Family within reach. A warm illuminated home with a voice waveform, representing voice, care, and bounded agency.</desc>
+  <defs>
+    <linearGradient id="background" x2="1" y2="1">
+      <stop stop-color="#102C32"/>
+      <stop offset="1" stop-color="#071B21"/>
+    </linearGradient>
+    <radialGradient id="glow">
+      <stop stop-color="#F1BC76" stop-opacity=".22"/>
+      <stop offset="1" stop-color="#F1BC76" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="home" x2="0" y2="1">
+      <stop stop-color="#F7CF97"/>
+      <stop offset="1" stop-color="#CD9457"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="520" rx="24" fill="url(#background)"/>
+  <circle cx="1290" cy="255" r="250" fill="url(#glow)"/>
+  <g fill="none" stroke="#70B8B7" stroke-opacity=".12">
+    <circle cx="1280" cy="260" r="195"/>
+    <circle cx="1280" cy="260" r="238"/>
+    <path d="M1040 260h480M1280 24v472"/>
+  </g>
+  <g font-family="Segoe UI, Arial, sans-serif">
+    <rect x="88" y="77" width="34" height="4" rx="2" fill="#E8B67C"/>
+    <text x="138" y="88" fill="#A9C9C9" font-size="19" letter-spacing="4">A LITTLE HELP. A FULLER LIFE.</text>
+    <text x="84" y="220" fill="#F5F3EC" font-size="88" font-weight="700" letter-spacing="-3">Hearth Companion</text>
+    <text x="89" y="284" fill="#CEE0DC" font-size="33">Everyday independence. Family within reach.</text>
+    <g font-size="18" letter-spacing="2" fill="#9FC3C1">
+      <text x="89" y="389">VOICE</text>
+      <circle cx="178" cy="382" r="3" fill="#E8B67C"/>
+      <text x="202" y="389">CARE</text>
+      <circle cx="283" cy="382" r="3" fill="#E8B67C"/>
+      <text x="307" y="389">BOUNDED AGENCY</text>
+    </g>
+    <text x="89" y="456" fill="#8BAEAF" font-size="16">AI TINKERERS  /  AGENTS, EVERYWHERE  /  PARIS 2026</text>
+  </g>
+  <g fill="none" stroke="url(#home)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M1135 239l145-121 145 121"/>
+    <path d="M1162 219v153h236V219"/>
+  </g>
+  <rect x="1190" y="246" width="180" height="98" rx="22" fill="#E8B67C" fill-opacity=".09"/>
+  <g stroke="#F5CF9B" stroke-width="8" stroke-linecap="round">
+    <path d="M1220 286v18M1240 271v48M1260 281v28M1280 260v70M1300 275v40M1320 269v52M1340 286v18"/>
+  </g>
+  <circle cx="1410" cy="151" r="25" fill="#123D40" stroke="#73B8AC" stroke-width="2"/>
+  <path d="M1399 151l7 7 14-15" fill="none" stroke="#B5D9CA" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

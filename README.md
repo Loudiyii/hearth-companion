@@ -1,3 +1,5 @@
+![Hearth Companion — Everyday independence. Family within reach.](docs/assets/hearth-banner.svg)
+
 # Hearth Companion
 
 **A home companion for an older person living alone. It talks, it sees, it runs her errands — and it pays for things only within limits her family set. Above the limit it stops and asks a relative. If she falls, it asks her first, then brings family in.**
