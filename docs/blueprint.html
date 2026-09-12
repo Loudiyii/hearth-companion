@@ -1,0 +1,543 @@
+<title>Hearth Companion</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --bg: #F2F4F6;
+    --surface: #FFFFFF;
+    --surface-2: #E9EDF1;
+    --ink: #182230;
+    --muted: #5B6672;
+    --line: #D3DAE1;
+    --accent: #0E7C86;
+    --accent-soft: #D9EEF0;
+    --money: #C9791A;
+    --money-soft: #F7E8D2;
+    --alert: #C43D2B;
+    --alert-soft: #F6DBD6;
+    --ok: #2E8B57;
+    --ok-soft: #D8EEE1;
+    --display: "Sora", "Segoe UI", system-ui, sans-serif;
+    --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "Consolas", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #10161D; --surface: #182028; --surface-2: #1F2932; --ink: #E6EBF0; --muted: #98A3AE; --line: #2A3440;
+      --accent: #3FB5BF; --accent-soft: #143A3E; --money: #E39A3B; --money-soft: #3E2D14; --alert: #E5604C; --alert-soft: #43201B; --ok: #4CBF7A; --ok-soft: #173826;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #10161D; --surface: #182028; --surface-2: #1F2932; --ink: #E6EBF0; --muted: #98A3AE; --line: #2A3440;
+    --accent: #3FB5BF; --accent-soft: #143A3E; --money: #E39A3B; --money-soft: #3E2D14; --alert: #E5604C; --alert-soft: #43201B; --ok: #4CBF7A; --ok-soft: #173826;
+  }
+
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.55; padding-inline: 20px; padding-block: 36px 80px; }
+  .wrap { max-width: 1040px; margin: 0 auto; display: grid; gap: 56px; }
+
+  h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; }
+  h1 { font-size: clamp(30px, 4.5vw, 44px); font-weight: 700; line-height: 1.1; letter-spacing: -0.01em; }
+  h2 { font-size: 22px; font-weight: 600; }
+  h3 { font-size: 15px; font-weight: 600; }
+  p { margin: 0; max-width: 68ch; }
+  .lede { color: var(--muted); font-size: 17px; max-width: 60ch; }
+  .eyebrow { font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  section { display: grid; gap: 18px; }
+  .sec-head { display: grid; gap: 6px; }
+  .sec-head p { color: var(--muted); }
+
+  header { display: grid; gap: 14px; padding-bottom: 28px; border-bottom: 1px solid var(--line); }
+  .pitch { border-left: 3px solid var(--accent); padding-left: 16px; font-family: var(--display); font-size: 17px; font-weight: 500; max-width: 62ch; }
+
+  figure { margin: 0; display: grid; gap: 10px; }
+  figure svg { max-width: 100%; height: auto; display: block; }
+  figcaption { color: var(--muted); font-size: 13.5px; max-width: 80ch; }
+  .fig-scroll { overflow-x: auto; }
+  .fig-scroll svg { min-width: 640px; }
+  svg text { font-family: var(--body); font-size: 12px; fill: currentColor; }
+  svg .t-mono { font-family: var(--mono); font-size: 11px; }
+  svg .t-title { font-family: var(--display); font-weight: 600; font-size: 13px; }
+  svg .t-small { font-size: 11px; fill: var(--muted); }
+  svg .box { fill: var(--surface); stroke: var(--line); stroke-width: 1.2; }
+  svg .panel { fill: var(--surface-2); stroke: var(--line); stroke-width: 1; }
+  svg .edge { stroke: currentColor; stroke-width: 1.3; fill: none; }
+  svg .edge-money { stroke: var(--money); stroke-width: 2; fill: none; }
+  svg .edge-alert { stroke: var(--alert); stroke-width: 1.6; fill: none; }
+  svg .edge-dash { stroke-dasharray: 4 4; }
+  svg .st { fill: var(--surface); stroke: currentColor; stroke-width: 1.2; }
+  svg .st-money { fill: var(--money-soft); stroke: var(--money); stroke-width: 1.6; }
+  svg .st-ok { fill: var(--ok-soft); stroke: var(--ok); stroke-width: 1.4; }
+  svg .st-bad { fill: var(--alert-soft); stroke: var(--alert); stroke-width: 1.4; }
+  svg .st-muted { fill: var(--surface-2); stroke: var(--line); stroke-width: 1.2; }
+
+  /* flows */
+  .flow { display: grid; gap: 12px; }
+  .flow-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .flow-head .tag { font-family: var(--mono); font-size: 11px; padding: 3px 8px; border-radius: 4px; background: var(--surface-2); color: var(--muted); }
+  .flow-head .tag.req { background: var(--accent-soft); color: var(--accent); }
+  .flow-head .tag.stretch { background: var(--money-soft); color: var(--money); }
+  .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .step { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 12px 12px 12px; display: grid; gap: 6px; align-content: start; position: relative; }
+  .step .who { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; }
+  .step .who.elder { color: var(--accent); }
+  .step .who.companion { color: var(--accent); }
+  .step .who.backend { color: var(--muted); }
+  .step .who.family { color: var(--money); }
+  .step .who.alert { color: var(--alert); }
+  .step .say { font-style: italic; }
+  .step .say::before { content: "“"; } .step .say::after { content: "”"; }
+  .step .n { position: absolute; top: -9px; left: 10px; background: var(--bg); padding: 0 6px; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .step.hot { border-color: var(--money); box-shadow: inset 3px 0 0 var(--money); }
+  .step.crit { border-color: var(--alert); box-shadow: inset 3px 0 0 var(--alert); }
+
+  /* sponsor table */
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-family: var(--mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+  td:first-child { font-weight: 600; white-space: nowrap; }
+  .tbl-scroll { overflow-x: auto; }
+
+  /* build order */
+  .blocks { display: grid; gap: 0; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--surface); }
+  .block { display: grid; grid-template-columns: 110px 1fr; gap: 14px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  .block:last-child { border-bottom: 0; }
+  .block .when { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .block .when b { display: block; color: var(--ink); font-size: 13px; }
+  .block .what { display: grid; gap: 4px; }
+  .block .done { color: var(--muted); font-size: 13.5px; }
+  .block .done::before { content: "done when · "; font-family: var(--mono); font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; }
+  .cutline { padding: 10px 16px; background: var(--alert-soft); color: var(--alert); font-family: var(--mono); font-size: 12px; letter-spacing: 0.03em; border-bottom: 1px solid var(--line); }
+  @media (max-width: 520px) { .block { grid-template-columns: 1fr; gap: 6px; } }
+
+  /* stage */
+  .stage { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .screen { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 14px; display: grid; gap: 8px; align-content: start; }
+  .screen .eyebrow { color: var(--accent); }
+  .screen ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 14px; }
+  .screen ul li { margin: 2px 0; }
+
+  /* contracts */
+  pre { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; font-family: var(--mono); font-size: 12.5px; line-height: 1.5; overflow-x: auto; color: var(--ink); }
+  .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+  .qa { display: grid; gap: 10px; }
+  .qa div { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; display: grid; gap: 4px; }
+  .qa b { font-family: var(--display); font-weight: 600; font-size: 14px; }
+  .qa span { color: var(--muted); font-size: 14px; }
+  footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); padding-top: 18px; }
+</style>
+
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">AI Tinkerers · Agents, Everywhere · Paris build day</div>
+  <h1>Hearth Companion</h1>
+  <p class="lede">AI agents are about to start spending money for people. We built one for the person who most needs a guardrail — an older adult living alone — and the guardrail is a relative with a tap-to-approve on Telegram. The agent acts freely within limits; above them, it stops and asks.</p>
+  <p class="pitch">Bounded agency is the idea. Elder care is the case. One spoken sentence in the room → the agent acts on its own → a relative approves, once, on their phone. The vulnerable person is never the sole approver of a large spend.</p>
+</header>
+
+<!-- ============ SYSTEM MAP ============ -->
+<section>
+  <div class="sec-head">
+    <div class="eyebrow">01 · How the pieces talk</div>
+    <h2>Two rooms, one backend</h2>
+    <p>Laptop 1 is the elder's room. A phone and laptop 2 are the family. One Next.js app on Vercel is the backend and the dashboard. Everything that must survive a restart or a double-tap lives in Supabase, and the database is also the event bus.</p>
+  </div>
+  <figure>
+    <div class="fig-scroll">
+    <svg viewBox="0 0 1000 560" role="img" aria-label="System map: the elder's room laptop sends events and speech to a Next.js backend on Vercel, which uses OpenAI, Auth0, Exa and Stripe, stores state in Supabase, enqueues jobs in Trigger.dev, and talks to the family through Telegram; the dashboard subscribes to Supabase Realtime.">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+        <marker id="ar-money" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--money)"/></marker>
+      </defs>
+
+      <!-- cloud services row -->
+      <rect x="360" y="24" width="135" height="58" rx="5" class="box"/>
+      <text x="427" y="47" text-anchor="middle" class="t-title">OpenAI</text>
+      <text x="427" y="66" text-anchor="middle" class="t-small">Realtime voice · vision</text>
+      <rect x="505" y="24" width="135" height="58" rx="5" class="box"/>
+      <text x="572" y="47" text-anchor="middle" class="t-title">Auth0</text>
+      <text x="572" y="66" text-anchor="middle" class="t-small">who + role (approver)</text>
+      <rect x="360" y="92" width="135" height="58" rx="5" class="box"/>
+      <text x="427" y="115" text-anchor="middle" class="t-title">Exa</text>
+      <text x="427" y="134" text-anchor="middle" class="t-small">find pharmacy (stretch)</text>
+      <rect x="505" y="92" width="135" height="58" rx="5" class="box"/>
+      <text x="572" y="115" text-anchor="middle" class="t-title">Stripe</text>
+      <text x="572" y="134" text-anchor="middle" class="t-small">test payments</text>
+
+      <!-- services -> backend -->
+      <line x1="500" y1="150" x2="500" y2="196" class="edge" marker-end="url(#ar)"/>
+      <text x="510" y="178" class="t-small">the backend calls these</text>
+
+      <!-- backend -->
+      <rect x="360" y="200" width="280" height="176" rx="6" class="box"/>
+      <text x="376" y="224" class="t-title">Backend · Next.js on Vercel</text>
+      <text x="376" y="248" class="t-mono">/api/agent · orchestrator (tools)</text>
+      <text x="376" y="268" class="t-mono">/api/telegram · webhook</text>
+      <text x="376" y="288" class="t-mono">/api/approvals/[id]/consume</text>
+      <text x="376" y="308" class="t-mono">/api/realtime/token · /api/vision</text>
+      <text x="376" y="328" class="t-mono">/api/sim/shop · /api/sim/pharmacy</text>
+      <text x="376" y="348" class="t-mono">budget read from DB, per request</text>
+
+      <!-- storage row -->
+      <rect x="360" y="436" width="135" height="80" rx="5" class="box"/>
+      <text x="427" y="460" text-anchor="middle" class="t-title">Supabase</text>
+      <text x="427" y="479" text-anchor="middle" class="t-small">Postgres · source of truth</text>
+      <text x="427" y="496" text-anchor="middle" class="t-small">Realtime · the event bus</text>
+      <rect x="505" y="436" width="135" height="80" rx="5" class="box"/>
+      <text x="572" y="460" text-anchor="middle" class="t-title">Trigger.dev</text>
+      <text x="572" y="479" text-anchor="middle" class="t-small">expiry notice · escalateAlert</text>
+      <text x="572" y="496" text-anchor="middle" class="t-small">refill (stretch)</text>
+
+      <line x1="427" y1="376" x2="427" y2="432" class="edge" marker-end="url(#ar)" marker-start="url(#ar)"/>
+      <text x="300" y="408" class="t-small" text-anchor="end">reads / writes rows</text>
+      <line x1="572" y1="376" x2="572" y2="432" class="edge" marker-end="url(#ar)"/>
+      <text x="582" y="408" class="t-small">enqueue jobs</text>
+      <path d="M505,486 L495,486" class="edge edge-dash" marker-end="url(#ar)"/>
+      <path d="M427,516 L427,538 L840,538 L840,360" class="edge" marker-end="url(#ar)"/>
+      <text x="640" y="552" text-anchor="middle" class="t-small">rows change → dashboard updates (Supabase Realtime, no SSE)</text>
+
+      <!-- elder room -->
+      <rect x="20" y="200" width="280" height="176" rx="6" class="panel"/>
+      <text x="36" y="224" class="t-title">Elder's room · laptop 1</text>
+      <rect x="36" y="240" width="248" height="52" rx="4" class="box"/>
+      <text x="48" y="260" class="t-mono">webcam → 1 frame / 3–5 s</text>
+      <text x="48" y="278" class="t-small">vision → person_on_floor_candidate</text>
+      <rect x="36" y="304" width="248" height="52" rx="4" class="box"/>
+      <text x="48" y="324" class="t-mono">mic + speaker → Realtime API</text>
+      <text x="48" y="342" class="t-small">the companion talks, listens, calls tools</text>
+
+      <line x1="300" y1="262" x2="356" y2="262" class="edge" marker-end="url(#ar)"/>
+      <text x="328" y="254" text-anchor="middle" class="t-small">events</text>
+      <line x1="356" y1="330" x2="300" y2="330" class="edge" marker-end="url(#ar)" marker-start="url(#ar)"/>
+      <text x="328" y="322" text-anchor="middle" class="t-small">tool calls</text>
+      <path d="M160,240 L160,60 L356,60" class="edge edge-dash" marker-end="url(#ar)"/>
+      <text x="168" y="150" class="t-small">voice, WebRTC</text>
+      <text x="168" y="166" class="t-small">straight to OpenAI</text>
+
+      <!-- family -->
+      <rect x="700" y="200" width="280" height="176" rx="6" class="panel"/>
+      <text x="716" y="224" class="t-title">Family · phone + laptop 2</text>
+      <rect x="716" y="240" width="248" height="52" rx="4" class="box"/>
+      <text x="728" y="260" class="t-mono">Telegram bot</text>
+      <text x="728" y="278" class="t-small">basket · total · excess · [Approve] [Reject]</text>
+      <rect x="716" y="304" width="248" height="52" rx="4" class="box"/>
+      <text x="728" y="324" class="t-mono">Dashboard · CopilotKit</text>
+      <text x="728" y="342" class="t-small">pending · receipts · alerts · ask the agent</text>
+
+      <path d="M640,254 L696,254" class="edge-money" marker-end="url(#ar-money)"/>
+      <text x="668" y="246" text-anchor="middle" class="t-small">over budget</text>
+      <path d="M696,272 L640,272" class="edge-money" marker-end="url(#ar-money)"/>
+      <text x="668" y="290" text-anchor="middle" class="t-small">tap → webhook</text>
+    </svg>
+    </div>
+    <figcaption>Amber arrows are the money path — the one flow that must be right. Auth0 only answers "who is this and what role?"; the current spending limit is read from Supabase on every request so a mid-demo change takes effect immediately. Trigger.dev jobs run in another process and only ever read and write rows. The same app deploys unchanged to Google Cloud Run if the sponsor table hands out a credited project.</figcaption>
+  </figure>
+</section>
+
+<!-- ============ HERO FLOW ============ -->
+<section>
+  <div class="sec-head">
+    <div class="eyebrow">02 · The required demo</div>
+    <h2>Grocery order that crosses the budget</h2>
+    <p>This is the differentiator. Build it first, by text, before voice exists. It must pass the double-tap test before anything else is started.</p>
+  </div>
+
+  <div class="flow">
+    <div class="flow-head"><h3>Flow 2 — voice → basket → approval → payment</h3><span class="tag req">required</span></div>
+    <div class="steps">
+      <div class="step"><span class="n">1</span><span class="who elder">Elder</span><span class="say">Order my groceries for the week.</span></div>
+      <div class="step"><span class="n">2</span><span class="who companion">Companion</span><span>Builds the basket from her usual list, in integer cents. Freezes the quote.</span></div>
+      <div class="step hot"><span class="n">3</span><span class="who backend">Backend</span><span>Total <b>€84</b> &gt; weekly limit <b>€60</b> → creates Approval <code>PENDING</code>, excess €24, expires in 15 min.</span></div>
+      <div class="step hot"><span class="n">4</span><span class="who family">Relative · Telegram</span><span>Gets basket, total, excess and two buttons. Taps <b>Approve</b>.</span></div>
+      <div class="step hot"><span class="n">5</span><span class="who backend">Backend</span><span>Atomic consume: one row or refuse. Stripe test charge with idempotency key = approval id.</span></div>
+      <div class="step"><span class="n">6</span><span class="who companion">Companion</span><span class="say">Your groceries are ordered, your daughter approved the extra €24.</span><span>Receipt appears on the dashboard.</span></div>
+    </div>
+  </div>
+
+  <figure>
+    <div class="fig-scroll">
+    <svg viewBox="0 0 1000 300" role="img" aria-label="Two state machines. Approval moves from PENDING to APPROVED, REJECTED or EXPIRED; an approved approval is atomically consumed exactly once. Consumption starts Payment, which moves from PROCESSING to SUCCEEDED or FAILED.">
+      <defs>
+        <marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+        <marker id="ar2-money" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--money)"/></marker>
+      </defs>
+      <text x="20" y="24" class="t-title">Approval</text>
+      <text x="720" y="24" class="t-title">Payment</text>
+      <line x1="690" y1="10" x2="690" y2="290" class="edge edge-dash" style="opacity:.5"/>
+
+      <!-- approval states -->
+      <rect x="20" y="48" width="130" height="40" rx="20" class="st"/>
+      <text x="85" y="73" text-anchor="middle" class="t-mono">PENDING</text>
+      <rect x="270" y="48" width="130" height="40" rx="20" class="st-ok"/>
+      <text x="335" y="73" text-anchor="middle" class="t-mono">APPROVED</text>
+      <rect x="520" y="48" width="130" height="40" rx="20" class="st-money"/>
+      <text x="585" y="73" text-anchor="middle" class="t-mono">CONSUMED</text>
+      <rect x="270" y="150" width="130" height="40" rx="20" class="st-bad"/>
+      <text x="335" y="175" text-anchor="middle" class="t-mono">REJECTED</text>
+      <rect x="270" y="230" width="130" height="40" rx="20" class="st-muted"/>
+      <text x="335" y="255" text-anchor="middle" class="t-mono">EXPIRED</text>
+
+      <line x1="150" y1="68" x2="266" y2="68" class="edge" marker-end="url(#ar2)"/>
+      <text x="208" y="60" text-anchor="middle" class="t-small">relative taps Approve</text>
+      <path d="M150,68 C200,68 200,170 266,170" class="edge" marker-end="url(#ar2)"/>
+      <text x="200" y="150" text-anchor="middle" class="t-small">taps Reject</text>
+      <path d="M150,68 C200,68 190,250 266,250" class="edge edge-dash" marker-end="url(#ar2)"/>
+      <text x="195" y="284" text-anchor="middle" class="t-small">expires_at passed · Trigger.dev only notifies</text>
+
+      <path d="M400,68 L516,68" class="edge-money" marker-end="url(#ar2-money)"/>
+      <text x="458" y="60" text-anchor="middle" class="t-small">atomic, once, not expired</text>
+      <text x="458" y="102" text-anchor="middle" class="t-mono" style="font-size:10px">UPDATE … SET status='CONSUMED'</text>
+      <text x="458" y="116" text-anchor="middle" class="t-mono" style="font-size:10px">WHERE id=$1 AND status='APPROVED'</text>
+      <text x="458" y="130" text-anchor="middle" class="t-mono" style="font-size:10px">AND expires_at &gt; now()</text>
+      <text x="458" y="145" text-anchor="middle" class="t-small">0 rows → refuse (2nd tap or expired)</text>
+
+      <!-- payment states -->
+      <rect x="720" y="48" width="130" height="40" rx="20" class="st"/>
+      <text x="785" y="73" text-anchor="middle" class="t-mono">PROCESSING</text>
+      <rect x="850" y="150" width="130" height="40" rx="20" class="st-ok"/>
+      <text x="915" y="175" text-anchor="middle" class="t-mono">SUCCEEDED</text>
+      <rect x="720" y="230" width="130" height="40" rx="20" class="st-bad"/>
+      <text x="785" y="255" text-anchor="middle" class="t-mono">FAILED</text>
+
+      <path d="M650,68 L716,68" class="edge-money" marker-end="url(#ar2-money)"/>
+      <text x="683" y="60" text-anchor="middle" class="t-small" style="font-size:10px">starts</text>
+      <path d="M810,88 C830,120 850,140 880,148" class="edge" marker-end="url(#ar2)"/>
+      <text x="880" y="128" text-anchor="middle" class="t-small">Stripe ok</text>
+      <line x1="785" y1="88" x2="785" y2="226" class="edge" marker-end="url(#ar2)"/>
+      <text x="775" y="160" text-anchor="end" class="t-small">card declined</text>
+      <text x="785" y="292" text-anchor="middle" class="t-small">companion says so; approval stays consumed</text>
+      <text x="850" y="292" text-anchor="middle" class="t-small" style="font-size:10px">idempotency key = approval.id</text>
+    </svg>
+    </div>
+    <figcaption>Approval and payment are separate machines because an approved purchase can still fail at Stripe. The amber edge is the double-tap defense: a single <code>UPDATE … WHERE status='APPROVED' AND expires_at &gt; now() RETURNING *</code> — if no row comes back, someone already used it or it expired. Expiry is therefore correct without any job; Trigger.dev's <code>expireApproval</code> just flips the status and tells the dashboard, so if it fights you on the day, cut it and nothing breaks.</figcaption>
+  </figure>
+
+  <div class="two">
+    <pre>// acceptance test — prove this before voice exists
+relative taps Approve  → 1 test payment SUCCEEDED
+relative taps Approve  → 0 rows consumed, no charge
+receipt on dashboard   → exactly one
+companion announces    → "your daughter approved…"</pre>
+    <pre>// money rules
+amounts        integer cents, never floats
+quote          frozen at approval time; checkout
+               charges the snapshot, not a re-price
+budget         read from DB per request (not JWT)
+expiry         checked in the consume query itself
+stripe         idempotency key = approval.id</pre>
+  </div>
+</section>
+
+<!-- ============ OTHER FLOWS ============ -->
+<section>
+  <div class="sec-head">
+    <div class="eyebrow">03 · The other two flows</div>
+    <h2>Camera check-in, then medication</h2>
+    <p>The fall is the emotional close of the demo — record a backup video the moment it works. Medication and pharmacy search are stretch: build them only if flow 2 and 3 are done.</p>
+  </div>
+
+  <div class="flow">
+    <div class="flow-head"><h3>Flow 3 — camera flags a person on the floor</h3><span class="tag req">required · second</span></div>
+    <div class="steps">
+      <div class="step crit"><span class="n">1</span><span class="who alert">Vision</span><span><code>person_on_floor_candidate</code> in 2 consecutive frames (debounced). Confidence is an estimate, not a probability.</span></div>
+      <div class="step"><span class="n">2</span><span class="who companion">Companion · speaks first</span><span class="say">Marie, I noticed you're on the floor. Are you okay?</span></div>
+      <div class="step"><span class="n">3</span><span class="who elder">Elder</span><span>No answer, or a weak one, within 20 s.</span></div>
+      <div class="step crit"><span class="n">4</span><span class="who backend">Trigger.dev</span><span><code>escalateAlert</code> — Telegram to the relative with what was seen and when. Emergency call stays simulated.</span></div>
+      <div class="step"><span class="n">5</span><span class="who family">Relative</span><span>Taps <b>I'm on it</b>. Incident logged; dashboard shows the alert and the acknowledgement.</span></div>
+    </div>
+  </div>
+
+  <div class="flow">
+    <div class="flow-head"><h3>Flow 1 — running low on pills</h3><span class="tag stretch">stretch</span></div>
+    <div class="steps">
+      <div class="step"><span class="n">1</span><span class="who elder">Elder</span><span class="say">I think I'm running low on my blood pressure pills.</span></div>
+      <div class="step"><span class="n">2</span><span class="who companion">Companion</span><span>Clarifies which medication; reads the reported supply (self-reported, not seen by camera).</span></div>
+      <div class="step"><span class="n">3</span><span class="who backend">Backend</span><span>Exa finds the nearest open pharmacy; <code>processRefill</code> job hits the simulated pharmacy.</span></div>
+      <div class="step"><span class="n">4</span><span class="who companion">Companion</span><span class="say">Your refill is ready Thursday at the pharmacy on rue Oberkampf.</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SPONSORS ============ -->
+<section>
+  <div class="sec-head">
+    <div class="eyebrow">04 · Sponsor map</div>
+    <h2>Each sponsor does a job it's good at</h2>
+  </div>
+  <div class="tbl-scroll">
+  <table>
+    <thead><tr><th>Sponsor</th><th>Owns</th><th>Why it's the right tool (say this to judges)</th></tr></thead>
+    <tbody>
+      <tr><td>OpenAI</td><td>Voice + vision + agent brain</td><td>Realtime API talks and calls tools in one loop; a mini vision model reads one frame every few seconds.</td></tr>
+      <tr><td>Auth0</td><td>Identity and role</td><td>Elder is the principal, relative is the <em>approver</em>. The backend checks the household's current budget in the DB — a token claim would go stale.</td></tr>
+      <tr><td>Trigger.dev</td><td>Expiry notice, escalation, refill</td><td>Delayed and retried jobs that run out-of-process and only touch rows — which is exactly why state lives in Postgres. Never on the money path's correctness.</td></tr>
+      <tr><td>Supabase</td><td>Postgres + Realtime</td><td>Source of truth for approvals, payments, budgets, incidents. Realtime turns the DB into the event bus — the dashboard subscribes to row changes, no SSE.</td></tr>
+      <tr><td>Vercel</td><td>Backend + dashboard hosting</td><td>One Next.js app; public HTTPS from minute five, so the Telegram webhook works from block 0. Point the webhook at the <em>production</em> URL, never a preview.</td></tr>
+      <tr><td>Google Cloud Run</td><td>Optional</td><td>Sponsor. The same app deploys unchanged via the Cloud Run MCP if their table hands out a credited project on the day — do it then, not before.</td></tr>
+      <tr><td>CopilotKit</td><td>Family dashboard</td><td>Pending approvals, receipts, alerts — and the relative can ask "what did Mom order this week?". Category prize.</td></tr>
+      <tr><td>Exa</td><td>Find pharmacy (stretch)</td><td>One call for the nearest open pharmacy during the refill flow.</td></tr>
+      <tr><td>OpenRouter</td><td>Model fallback</td><td>If sponsor keys get rate-limited on the day, one-line swap. Insurance.</td></tr>
+      <tr><td>Stripe · Telegram</td><td>Test payments · approvals</td><td>Not sponsors. Say it plainly: test payments against <em>our simulated shop</em>, not a real merchant.</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- ============ BUILD ORDER ============ -->
+<section>
+  <div class="sec-head">
+    <div class="eyebrow">05 · Build order</div>
+    <h2>Differentiator first, infra when it's needed, camera last</h2>
+  </div>
+  <div class="blocks">
+    <div class="block">
+      <div class="when"><b>Block 0</b>30 min</div>
+      <div class="what"><span>Keys from every sponsor table · Next.js repo <b>deployed to Vercel</b> · Supabase project + schema · Telegram webhook pointed at the production URL · agree the three contracts below.</span><span class="done">all four people can build in parallel against a live URL</span></div>
+    </div>
+    <div class="block">
+      <div class="when"><b>Block 1</b>~2.5 h</div>
+      <div class="what"><span>Flow 2 by <b>text</b>: basket → over limit → Telegram → Approve → Stripe test charge. Backed by Supabase; dashboard feed via Realtime.</span><span class="done">the double-tap acceptance test passes on the deployed URL</span></div>
+    </div>
+    <div class="block">
+      <div class="when"><b>Block 2</b>~1.5 h</div>
+      <div class="what"><span>Auth0 identity + role · Trigger.dev expiry notice + escalation · swap text for Realtime voice (ephemeral token route).</span><span class="done">flow 2 works by voice; an expired approval is refused and the dashboard says why</span></div>
+    </div>
+    <div class="block">
+      <div class="when"><b>Block 3</b>~2 h</div>
+      <div class="what"><span>Camera loop → <code>person_on_floor_candidate</code> → spoken check-in → <code>escalateAlert</code> → relative acknowledges.</span><span class="done">flow 3 runs once cleanly; backup video recorded</span></div>
+    </div>
+    <div class="cutline">cut line — below here only if ahead of schedule</div>
+    <div class="block">
+      <div class="when"><b>Block 4</b>~1.5 h</div>
+      <div class="what"><span>Medication flow + Exa pharmacy · CopilotKit dashboard polish · rehearse the 2-minute script three times.</span><span class="done">you could demo from the video alone if the wifi dies</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CONTRACTS ============ -->
+<section>
+  <div class="sec-head">
+    <div class="eyebrow">06 · The three contracts</div>
+    <h2>Agree these in block 0 so nobody blocks anybody</h2>
+  </div>
+  <div class="two">
+<pre>// companion → backend
+type CompanionEvent =
+  | { type: "utterance";
+      text: string; at: string }
+  | { type: "person_on_floor_candidate";
+      confidence: number;   // estimate
+      note: string; at: string };</pre>
+<pre>// approval row (Supabase)
+type Approval = {
+  id: string; elderId: string; approverId: string;
+  items: { name: string; qty: number;
+           unitCents: number }[];
+  totalCents: number; limitCents: number;
+  excessCents: number; quoteHash: string;
+  status: "PENDING" | "APPROVED" | "REJECTED"
+        | "EXPIRED"  | "CONSUMED";
+  expiresAt: string; decidedAt?: string;
+};</pre>
+<pre>// agent tools (OpenAI function calling)
+build_basket(items[])      → basketId
+request_approval(basketId) → approvalId
+checkout(approvalId)       → paymentId
+check_in(reason)           → spoken question
+alert_family(incident)     → telegram
+// stretch
+request_refill(med) · find_pharmacy(near)</pre>
+<pre>// payment row (Supabase)
+type Payment = {
+  id: string; approvalId: string;
+  amountCents: number;
+  status: "NOT_STARTED" | "PROCESSING"
+        | "SUCCEEDED"   | "FAILED";
+  stripeIdempotencyKey: string; // = approvalId
+  receiptUrl?: string;
+};</pre>
+  </div>
+</section>
+
+<!-- ============ DESIGNING FOR MARIE ============ -->
+<section>
+  <div class="sec-head">
+    <div class="eyebrow">07 · Designing for Marie</div>
+    <h2>What a real impaired user actually does</h2>
+    <p>Taken from Benjamin Code's week wiring his mother's house (early-onset Alzheimer's). He built the eyes and ears; these are the constraints they impose on the hands.</p>
+  </div>
+  <div class="qa">
+    <div><b>She unplugs anything that blinks at night.</b><span>No LEDs, no glowing screen at rest. The companion is invisible until it speaks.</span></div>
+    <div><b>She forgot how to use the coffee maker and the TV remote.</b><span>Zero-action interface. No wake word to remember, no button. She talks; it listens. When something looks wrong, it speaks first.</span></div>
+    <div><b>The same questions, all day, in a loop.</b><span>"Is this my home? Who's your father?" The agent answers the fortieth repetition as warmly as the first. That is a feature, and a demo moment.</span></div>
+    <div><b>Feeling stays, memory goes.</b><span>Success is not "did she remember" but "does she feel accompanied". Check-ins are reassurance, never surveillance.</span></div>
+    <div><b>She can't approve her own purchases.</b><span>She can't even answer the phone. So a relative as approver isn't a nice-to-have — it's the only way an agent can ever spend on her behalf. This is why bounded agency is the thesis.</span></div>
+    <div><b>The fall at 7 am, alone in the living room.</b><span>He happened to be there. Flow 3 is for when nobody is.</span></div>
+  </div>
+</section>
+
+<!-- ============ RUN OF SHOW ============ -->
+<section>
+  <div class="sec-head">
+    <div class="eyebrow">08 · Run of show</div>
+    <h2>Two minutes, two people, one phone</h2>
+    <p>Presenter talks to the judges. A teammate plays Marie at laptop 1. A third holds the daughter's phone. Silence during the autonomous parts — point, don't narrate.</p>
+  </div>
+  <div class="tbl-scroll">
+  <table>
+    <thead><tr><th>Time</th><th>On stage</th><th>Words</th></tr></thead>
+    <tbody>
+      <tr><td>0:00</td><td>Hook. Nothing on screen.</td><td><em>"Benjamin Code spent a week of hell wiring his mother's house so he could see her from Malaga. He built the eyes and ears. We built the hands — and a leash her family holds. This is Marie. 78, alone, can't use a phone. She can talk."</em></td></tr>
+      <tr><td>0:15</td><td>Marie turns to laptop 1.</td><td>Marie: <em>"Order my groceries for the week."</em> Companion: <em>"Of course, Marie — your usual list."</em> Feed: <code>basket · 12 items · €84</code></td></tr>
+      <tr><td>0:30</td><td>Point at projector, then phone.</td><td><em>"Over budget. It stops. It doesn't ask Marie — it asks her daughter."</em> Feed: <code>€84 &gt; limit €60 → asking Claire</code></td></tr>
+      <tr><td>0:45</td><td>Phone buzzes. Tap Approve. <b>Tap it again.</b></td><td><em>"Claire approves from the office. And if she double-taps —"</em> Feed: <code>approved · consumed once · 2nd tap ignored</code> <code>Stripe test · €84 · succeeded</code> <em>"— one charge, never two. Single-use, expires in fifteen minutes."</em></td></tr>
+      <tr><td>1:05</td><td>Companion speaks; receipt on dashboard.</td><td>Companion: <em>"Marie, your groceries are ordered. Claire approved the extra €24."</em> Presenter: <em>"She did nothing but ask. Her daughter did nothing but tap."</em></td></tr>
+      <tr><td>1:15</td><td>Shift tone.</td><td><em>"That's a Tuesday. Here's the morning nobody wants."</em></td></tr>
+      <tr><td>1:25</td><td>Marie slides to the floor. Two seconds. Companion speaks <b>unprompted</b>.</td><td>Companion: <em>"Marie? I noticed you're on the floor. Are you okay?"</em> Silence. Feed: <code>person on floor · no answer 20 s → escalating</code></td></tr>
+      <tr><td>1:45</td><td>Phone buzzes. Tap <b>I'm on it</b>. End on the phone.</td><td><em>"Claire knows in twenty seconds — from across the city, or from Malaga. No 112 call: a human decides that."</em></td></tr>
+      <tr><td>1:55</td><td>To the judges.</td><td><em>"An agent that acts freely within limits, stops and asks above them, and brings family in only when it matters. Bounded agency — for the person who needs it most."</em></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="qa">
+    <div><b>Fall not detected under stage lights</b><span>Press the off-screen force button and say so: "we're forcing the vision event — the lighting here isn't her living room." Honesty costs nothing; a frozen stage costs everything.</span></div>
+    <div><b>Voice fails</b><span>Marie types the same line. The chain still runs.</span></div>
+    <div><b>Everything fails</b><span>"Let me show you the run from an hour ago" — play the backup video and narrate over it with the same script.</span></div>
+    <div><b>Rehearsal</b><span>Three full runs with a timer, one with each failure injected. Whoever plays Marie practices the slide so the camera reads a fall, not a sit.</span></div>
+  </div>
+</section>
+
+<!-- ============ STAGE ============ -->
+<section>
+  <div class="sec-head">
+    <div class="eyebrow">09 · What the judges see</div>
+    <h2>Three screens, two minutes</h2>
+    <p>An autonomous agent's work is invisible. The whole staging job is making it visible: speak once, then point at things happening on their own.</p>
+  </div>
+  <div class="stage">
+    <div class="screen">
+      <span class="eyebrow">Laptop 1 · the room</span>
+      <h3>Marie's companion</h3>
+      <ul><li>Webcam pointed at a plain, well-lit corner</li><li>Mic + speaker — you only <em>talk</em> to this one</li><li>Off-screen "force event" button for the fall, used honestly if lighting fails</li></ul>
+    </div>
+    <div class="screen">
+      <span class="eyebrow">Projector · the agent</span>
+      <h3>Live activity feed</h3>
+      <ul><li>Each step lights up as it happens</li><li>Approval status changes in real time</li><li>Say nothing here — let it breathe, just point</li></ul>
+    </div>
+    <div class="screen">
+      <span class="eyebrow">Phone · the daughter</span>
+      <h3>Telegram + dashboard</h3>
+      <ul><li>Approval arrives with two buttons — tap it on stage</li><li>Fall alert arrives — tap "I'm on it"</li><li>End on this screen, on the human</li></ul>
+    </div>
+  </div>
+  <div class="qa">
+    <div><b>"What if she's tricked into approving a scam purchase?"</b><span>Anything over budget goes to the relative, not to her. The vulnerable person is never the sole approver of a large spend.</span></div>
+    <div><b>"Camera privacy?"</b><span>One frame every few seconds, analysed for one event, nothing recorded or stored. What the family sees follows the elder's sharing preferences.</span></div>
+    <div><b>"Is this a medical device?"</b><span>No — assistive awareness that escalates to a human. It never diagnoses and never calls emergency services on its own.</span></div>
+  </div>
+</section>
+
+<footer>Hearth Companion · working name · blueprint for the Paris build day. Stripe payments are test-mode against a simulated shop; emergency calls are simulated.</footer>
+
+</div>

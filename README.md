@@ -1,36 +1,63 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Hearth Companion
 
-## Getting Started
+A home companion for an older person living alone. It talks, does errands, and **pays within limits the family set** — above the limit it stops and a relative approves once on Telegram. A camera watches for a fall; the companion speaks first, and escalates to a human if nobody answers.
 
-First, run the development server:
+Thesis: **bounded agency**. Elder care is the case.
+
+Built for the AI Tinkerers global hackathon "Agents, Everywhere" (Paris). Blueprint: `docs/blueprint.html`. Engineering contract: `docs/SPEC.md`.
+
+## Stack
+
+Next.js 16 on Vercel · Supabase (Postgres + Realtime) · OpenAI (Realtime voice, mini vision, tools) · Telegram · Stripe test mode · Auth0 · Trigger.dev · CopilotKit · Exa (stretch)
+
+## Run it
 
 ```bash
+cp .env.example .env.local        # fill in keys
+npm install
+# 1. Supabase: create a project, run supabase/migrations/0001_init.sql then supabase/seed.sql in the SQL editor
+#    then set approvers.telegram_chat_id for "claire" to your chat id
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- `http://localhost:3000/room`   — Marie's companion (laptop 1)
+- `http://localhost:3000/family` — the family dashboard (projector / laptop 2)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Telegram webhook (after deploying, with `APP_URL` set to the production URL):
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+GET https://<your-app>.vercel.app/api/telegram/setup
+```
 
-## Learn More
+## The money path — acceptance test
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+APP_URL=http://localhost:3000 npx tsx scripts/acceptance-double-tap.ts
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Relative taps **Approve** twice → exactly one Stripe test charge, one receipt, one announcement. This must pass before anything else is built on top.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Rules that keep it honest
 
-## Deploy on Vercel
+- integer cents; a basket is a frozen quote
+- Approval and Payment are separate state machines
+- consume is one atomic `UPDATE … WHERE status='APPROVED' AND expires_at > now() RETURNING *`
+- budget is read from the DB per request, never from a token
+- Trigger.dev is never on the correctness path
+- vision emits `person_on_floor_candidate` — a candidate, never a diagnosis
+- Stripe is test mode against a simulated shop; emergency calls are simulated
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Layout
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+src/contracts/     shared zod types — the only thing everyone imports
+src/domain/        budgets, baskets, approvals, payments, incidents, activity (Supabase)
+src/server/        checkout (money path), agent (OpenAI tools), escalation, tap
+src/integrations/  openai, stripe, telegram, exa
+src/app/api/       routes (see docs/SPEC.md)
+src/app/room/      the companion screen
+src/app/family/    the dashboard (CopilotKit)
+trigger/           expiry notice, escalate-if-silent
+supabase/          migration + seed
+scripts/           acceptance test
+```
