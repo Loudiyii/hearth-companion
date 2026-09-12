@@ -88,3 +88,21 @@ export async function recordCheckInResponse(
   }
   return { outcome: "escalated", reason };
 }
+
+/** Marie asked for help or to reach her family in conversation — alert the family right away. */
+export async function raiseHelpRequest(
+  elderId: string,
+  reason: string,
+  photoBase64?: string
+): Promise<{ incidentId: string }> {
+  const incident = await createIncident(elderId, 1, reason, "asked_for_help");
+  const updated = await updateIncident(incident.id, { status: "ESCALATED", elderResponse: reason });
+  await logActivity(elderId, "incident_escalated", `She asked for help: "${reason.slice(0, 120)}" — alerting family.`, incident.id);
+  try {
+    const budget = await getBudget(elderId);
+    await sendIncidentAlert(updated, budget.approverChatId, { reason: `She asked for help: "${reason.slice(0, 120)}"`, photoBase64 });
+  } catch (err) {
+    console.warn("Failed to send Telegram help alert", err);
+  }
+  return { incidentId: incident.id };
+}

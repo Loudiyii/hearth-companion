@@ -6,13 +6,14 @@ export async function createIncident(
   elderId: string,
   confidence: number,
   note: string,
+  kind: Incident["kind"] = "person_on_floor_candidate",
 ): Promise<Incident> {
   const db = supabaseAdmin();
   const { data, error } = await db
     .from("incidents")
     .insert({
       elder_id: elderId,
-      kind: "person_on_floor_candidate",
+      kind,
       confidence,
       note,
       status: "DETECTED",

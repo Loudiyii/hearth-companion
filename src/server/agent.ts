@@ -6,6 +6,7 @@ import { ToolArgs, type ToolName } from "@/contracts";
 import { buildBasket, buildUsualBasket, getBasket, getBudget, createApproval, logActivity } from "@/domain";
 import { checkout } from "@/server/checkout";
 import { sendApprovalRequest } from "@/integrations/telegram";
+import { raiseHelpRequest } from "@/server/escalation";
 
 const SYSTEM_PROMPT = `You are Hearth, a warm home companion for an elderly person.
 Speak in short, simple sentences. Be patient: if the same question is asked
@@ -23,7 +24,11 @@ what am I wearing, what's on the table, do I have my glasses…). For anything
 else — orders, questions, small talk — answer the question and do NOT mention
 the camera, her clothes, or who is around her. If her message is a fragment or
 unclear, ask ONE short clarifying question — never guess at a task and never
-offer to describe her appearance unless she asked about it.`;
+offer to describe her appearance unless she asked about it.
+You CAN reach her family: if Marie says she feels unwell, hurt, scared, can't
+get up, or asks you to call or contact a family member, call the alert_family
+tool at once, then tell her plainly that Claire has been alerted and will be in
+touch. Never say you can't make calls or that she should call someone herself.`;
 
 const toolDefinitions: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   {
@@ -80,6 +85,19 @@ const toolDefinitions: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   {
     type: "function",
     function: {
+      name: "alert_family",
+      description:
+        "Alert Marie's family (Claire) on Telegram right now, with a picture of the room. Use immediately when Marie says she is unwell, hurt, scared, cannot get up, or asks to call or reach a family member.",
+      parameters: {
+        type: "object",
+        properties: { reason: { type: "string", description: "What Marie said, in her words" } },
+        required: ["reason"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "request_refill",
       description: "Request a medication refill.",
       parameters: {
@@ -105,7 +123,7 @@ const toolDefinitions: OpenAI.Chat.Completions.ChatCompletionTool[] = [
 
 type ToolCallRecord = { name: string; args: unknown; result: unknown };
 
-async function runTool(elderId: string, name: ToolName, rawArgs: unknown): Promise<unknown> {
+async function runTool(elderId: string, name: ToolName, rawArgs: unknown, imageBase64?: string): Promise<unknown> {
   const schema = ToolArgs[name];
   const args = schema.parse(rawArgs);
 
@@ -134,9 +152,13 @@ async function runTool(elderId: string, name: ToolName, rawArgs: unknown): Promi
       const a = args as z.infer<(typeof ToolArgs)["checkout"]>;
       return await checkout(a.basketId, a.approvalId);
     }
-    case "check_in":
-    case "alert_family": {
+    case "check_in": {
       return { ok: true };
+    }
+    case "alert_family": {
+      const a = args as z.infer<(typeof ToolArgs)["alert_family"]>;
+      const { incidentId } = await raiseHelpRequest(elderId, a.reason, imageBase64);
+      return { ok: true, incidentId, told: "Claire", how: "Telegram message with a photo of the room" };
     }
     case "request_refill": {
       const a = args as z.infer<(typeof ToolArgs)["request_refill"]>;
@@ -226,7 +248,7 @@ export async function runAgent(
 
       let result: unknown;
       try {
-        result = await runTool(elderId, name, parsedArgs);
+        result = await runTool(elderId, name, parsedArgs, imageBase64);
       } catch (err) {
         result = { error: err instanceof Error ? err.message : String(err) };
       }

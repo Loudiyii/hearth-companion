@@ -42,7 +42,7 @@ export async function sendIncidentAlert(
   const when = new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
   const text = [
     `Marie may need help (${when}).`,
-    `Camera: ${incident.note}.`,
+    incident.kind === "person_on_floor_candidate" ? `Camera: ${incident.note}.` : `She said: "${incident.note}".`,
     opts.reason ?? "No answer to the check-in.",
   ].join("\n");
   const keyboard = new InlineKeyboard().text(

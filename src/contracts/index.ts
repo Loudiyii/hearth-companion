@@ -126,7 +126,7 @@ export type IncidentStatus = z.infer<typeof IncidentStatus>;
 export const Incident = z.object({
   id: z.string(),
   elderId: z.string(),
-  kind: z.literal("person_on_floor_candidate"),
+  kind: z.enum(["person_on_floor_candidate", "asked_for_help"]),
   confidence: z.number(),
   note: z.string(),
   status: IncidentStatus,
@@ -184,7 +184,7 @@ export const ToolArgs = {
   request_approval: z.object({ basketId: z.string() }),
   checkout: z.object({ basketId: z.string(), approvalId: z.string().nullable() }),
   check_in: z.object({ incidentId: z.string(), question: z.string() }),
-  alert_family: z.object({ incidentId: z.string() }),
+  alert_family: z.object({ reason: z.string().min(1).max(300) }),
   request_refill: z.object({ medication: z.string() }),
   find_pharmacy: z.object({ near: z.string() }),
 } as const;
