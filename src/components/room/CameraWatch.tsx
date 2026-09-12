@@ -52,6 +52,7 @@ export function CameraWatch({
   const cooldownUntilRef = useRef(0);
   const [checking, setChecking] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [lastSample, setLastSample] = useState<{ posture: string; confidence: number; streak: number; at: number } | null>(null);
 
   useEffect(() => {
     let stream: MediaStream | null = null;
@@ -176,6 +177,7 @@ export function CameraWatch({
         } else {
           consecutiveFallsRef.current = 0;
         }
+        setLastSample({ posture: result.posture, confidence: result.confidence, streak: consecutiveFallsRef.current, at: Date.now() });
         if (consecutiveFallsRef.current >= 2) {
           runIncidentFlow(result.confidence, result.note || "possible fall detected");
         }
@@ -193,6 +195,11 @@ export function CameraWatch({
         <video ref={videoRef} muted playsInline className="h-full w-full object-cover" />
       </div>
       <canvas ref={canvasRef} className="hidden" />
+      {lastSample && (
+        <p className="pointer-events-none absolute right-6 top-[9.5rem] w-44 text-right font-mono text-[11px] text-zinc-600">
+          {lastSample.posture} · {Math.round(lastSample.confidence * 100)}% · {lastSample.streak}/2
+        </p>
+      )}
       {cameraError && (
         <p className="absolute right-6 top-40 max-w-44 text-right text-xs text-zinc-700">
           {cameraError}
