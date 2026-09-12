@@ -57,6 +57,8 @@ export interface UseLiveSessionResult {
    * LiveVoice a live-updating frame source without re-rendering on every frame.
    */
   setFrameProvider: (provider: (() => { frame: string | null; scene: string | null }) | null) => void;
+  /** While set, delegations are answered locally instead of asking the backend (used during a fall check-in). */
+  setDelegationOverride: (handler: ((text: string) => string) | null) => void;
 }
 
 /**
@@ -89,6 +91,10 @@ export function useLiveSession(
   const turnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const utteranceSubscribersRef = useRef(new Set<(text: string) => void>());
   const frameProviderRef = useRef<(() => { frame: string | null; scene: string | null }) | null>(null);
+  const delegationOverrideRef = useRef<((text: string) => string) | null>(null);
+  const setDelegationOverride = useCallback((handler: ((text: string) => string) | null) => {
+    delegationOverrideRef.current = handler;
+  }, []);
 
   const setFrameProvider = useCallback((provider: (() => { frame: string | null; scene: string | null }) | null) => {
     frameProviderRef.current = provider;
@@ -204,6 +210,16 @@ export function useLiveSession(
       const fresh = prev && full.startsWith(prev) ? full.slice(prev.length).trim() : full;
       const text = fresh.split(/\s+/).filter(Boolean).length >= 3 ? fresh : full.slice(-240).trim();
       dispatchedTextRef.current = full;
+      const override = delegationOverrideRef.current;
+      if (override) {
+        send({
+          type: "session.commentary.append",
+          event_id: crypto.randomUUID(),
+          delegation_id: delegationId,
+          content: override(text),
+        });
+        return;
+      }
       if (text.split(/\s+/).filter(Boolean).length < 3) {
         send({
           type: "session.commentary.append",
@@ -415,5 +431,6 @@ export function useLiveSession(
     sendThinking,
     onUserUtterance,
     setFrameProvider,
+    setDelegationOverride,
   };
 }

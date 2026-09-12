@@ -4,6 +4,7 @@ import { recordCheckInResponse } from "@/server/escalation";
 
 const Body = z.object({
   response: z.string().nullable(),
+  imageBase64: z.string().optional(),
 });
 
 export async function POST(
@@ -18,8 +19,8 @@ export async function POST(
   }
 
   try {
-    await recordCheckInResponse(id, parsed.data.response);
-    return NextResponse.json({ ok: true });
+    const result = await recordCheckInResponse(id, parsed.data.response, parsed.data.imageBase64);
+    return NextResponse.json({ ok: true, ...result });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ error: message }, { status: 500 });

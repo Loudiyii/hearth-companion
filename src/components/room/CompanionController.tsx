@@ -71,17 +71,32 @@ function activityToStatus(kind: LiveActivityKind): CompanionStatus {
   }
 }
 
-async function postIncidentResponse(incidentId: string, response: string | null) {
+async function postIncidentResponse(
+  incidentId: string,
+  response: string | null,
+  imageBase64?: string | null
+): Promise<"resolved_ok" | "escalated" | "ignored"> {
   try {
-    await fetch(`/api/incidents/${incidentId}/response`, {
+    const res = await fetch(`/api/incidents/${incidentId}/response`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ response }),
+      body: JSON.stringify({ response, ...(imageBase64 ? { imageBase64 } : {}) }),
     });
+    const data = await res.json().catch(() => ({}));
+    return data?.outcome === "resolved_ok" || data?.outcome === "escalated" ? data.outcome : "ignored";
   } catch {
     // best-effort — the incident path must never crash the room screen
+    return "ignored";
   }
 }
+
+const CHECK_IN_HOLD_LINE =
+  "I'm right here with you. I'm letting Claire know now. Stay still, and keep talking to me.";
+const OUTCOME_LINES = {
+  resolved_ok: "Good, I'm glad you're okay. I'll stay close by.",
+  escalated:
+    "I've alerted Claire with a picture of the room. She'll be told right away. Stay where you are — I'm staying with you.",
+} as const;
 
 export function CompanionController({
   onStatusChange,
@@ -195,20 +210,23 @@ export function CompanionController({
       setChecking(true);
 
       let settled = false;
-      const timer = setTimeout(() => {
+      live.setDelegationOverride(() => CHECK_IN_HOLD_LINE);
+      const finish = async (text: string | null) => {
         if (settled) return;
         settled = true;
         setChecking(false);
+        live.setDelegationOverride(null);
+        const outcome = await postIncidentResponse(incidentId, text, latestFrameRef.current);
+        if (outcome !== "ignored") live.sendCommentary(OUTCOME_LINES[outcome]);
+      };
+      const timer = setTimeout(() => {
         unsubscribe();
-        void postIncidentResponse(incidentId, null);
+        void finish(null);
       }, CHECK_IN_WINDOW_MS);
 
       const unsubscribe = live.onUserUtterance((text) => {
-        if (settled) return;
-        settled = true;
-        setChecking(false);
         clearTimeout(timer);
-        void postIncidentResponse(incidentId, text);
+        void finish(text);
       });
 
       void live.start({

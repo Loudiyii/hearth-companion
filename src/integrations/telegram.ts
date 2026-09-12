@@ -1,4 +1,4 @@
-import { Bot, InlineKeyboard } from "grammy";
+import { Bot, InlineKeyboard, InputFile } from "grammy";
 import { encodeCallback, type Approval, type Basket, type Incident } from "@/contracts";
 
 let cached: Bot | null = null;
@@ -36,14 +36,30 @@ export async function sendApprovalRequest(
 
 export async function sendIncidentAlert(
   incident: Incident,
-  chatId: string
+  chatId: string,
+  opts: { reason?: string; photoBase64?: string } = {}
 ): Promise<{ messageId: number }> {
-  const text = `Incident: ${incident.note} (confidence ${(incident.confidence * 100).toFixed(0)}%). No response received.`;
+  const when = new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
+  const text = [
+    `Marie may need help (${when}).`,
+    `Camera: ${incident.note}.`,
+    opts.reason ?? "No answer to the check-in.",
+  ].join("\n");
   const keyboard = new InlineKeyboard().text(
     "I'm on it",
     encodeCallback({ action: "ack", incidentId: incident.id })
   );
-  const message = await getBot().api.sendMessage(chatId, text, { reply_markup: keyboard });
+  const api = getBot().api;
+  if (opts.photoBase64) {
+    try {
+      const photo = new InputFile(Buffer.from(opts.photoBase64, "base64"), "room.jpg");
+      const message = await api.sendPhoto(chatId, photo, { caption: text, reply_markup: keyboard });
+      return { messageId: message.message_id };
+    } catch (err) {
+      console.warn("sendPhoto failed, falling back to text", err);
+    }
+  }
+  const message = await api.sendMessage(chatId, text, { reply_markup: keyboard });
   return { messageId: message.message_id };
 }
 
