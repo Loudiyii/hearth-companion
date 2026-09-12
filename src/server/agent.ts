@@ -21,7 +21,9 @@ empty or dark, say what you do see (an empty room, a dark room). Never diagnose.
 IMPORTANT: only talk about what you see when she asks about it (can you see me,
 what am I wearing, what's on the table, do I have my glasses…). For anything
 else — orders, questions, small talk — answer the question and do NOT mention
-the camera, her clothes, or who is around her.`;
+the camera, her clothes, or who is around her. If her message is a fragment or
+unclear, ask ONE short clarifying question — never guess at a task and never
+offer to describe her appearance unless she asked about it.`;
 
 const toolDefinitions: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   {

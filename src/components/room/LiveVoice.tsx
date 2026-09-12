@@ -78,6 +78,8 @@ export function useLiveSession(
   const dcRef = useRef<RTCDataChannel | null>(null);
   const micRef = useRef<MediaStream | null>(null);
   const userBufferRef = useRef("");
+  const lastInputDeltaAtRef = useRef(0);
+  const dispatchedTextRef = useRef("");
   const assistantTextRef = useRef("");
   const lastActivityAtRef = useRef(0);
   const pendingInstructionsRef = useRef<string | null>(null);
@@ -186,8 +188,31 @@ export function useLiveSession(
     async (delegationId: string) => {
       markActivity();
       notify("thinking");
-      const text = userBufferRef.current.trim();
-      userBufferRef.current = "";
+      // GPT-Live may delegate before the transcript of the sentence has fully arrived.
+      // Wait until deltas stop for ~900 ms (max 3 s) so the backend gets the whole request.
+      const startedAt = Date.now();
+      while (Date.now() - startedAt < 3000) {
+        const sinceLastDelta = Date.now() - lastInputDeltaAtRef.current;
+        const words = userBufferRef.current.trim().split(/\s+/).filter(Boolean).length;
+        if (sinceLastDelta > 900 && words >= 3) break;
+        await new Promise((r) => setTimeout(r, 150));
+      }
+      // Send what is new since the last delegation, with a little earlier context so
+      // short follow-ups ("and the bread?") still make sense to the backend.
+      const full = userBufferRef.current.trim();
+      const prev = dispatchedTextRef.current;
+      const fresh = prev && full.startsWith(prev) ? full.slice(prev.length).trim() : full;
+      const text = fresh.split(/\s+/).filter(Boolean).length >= 3 ? fresh : full.slice(-240).trim();
+      dispatchedTextRef.current = full;
+      if (text.split(/\s+/).filter(Boolean).length < 3) {
+        send({
+          type: "session.commentary.append",
+          event_id: crypto.randomUUID(),
+          delegation_id: delegationId,
+          content: "I didn't quite catch that. Could you say it again?",
+        });
+        return;
+      }
       try {
         const sight = frameProviderRef.current?.() ?? null;
         const frame = sight?.frame ?? null;
@@ -252,6 +277,7 @@ export function useLiveSession(
           const delta = typeof event.delta === "string" ? event.delta : "";
           markActivity();
           userBufferRef.current = (userBufferRef.current + delta).slice(-MAX_BUFFER_CHARS);
+          lastInputDeltaAtRef.current = Date.now();
           setUserCaption(userBufferRef.current);
           turnBufferRef.current += delta;
           scheduleTurnBoundary();
