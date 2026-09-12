@@ -35,7 +35,7 @@ export default function MonitorPage() {
             <ShieldIcon />
           </div>
           <div>
-            <p className="text-lg font-semibold leading-tight text-[#e6edf3]">FallGuard</p>
+            <p className="text-lg font-semibold leading-tight text-[#e6edf3]">Hearth Companion</p>
             <p className="text-xs leading-tight text-[#7d8b99]">Assistance en temps réel</p>
           </div>
         </div>

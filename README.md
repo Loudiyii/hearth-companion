@@ -86,7 +86,7 @@ The camera never alarms directly: **it asks first.** A false alarm costs one spo
 | URL | Who looks at it | What it is |
 |---|---|---|
 | `/room` | Marie (laptop in her living room) | Calm, dark, huge text. No buttons to press. Wakes when she talks. Camera preview faint in a corner. |
-| `/monitor` | The projector / judges / caregiver (same laptop as the camera) | The **FallGuard** console: live camera, current state, 5-step agent workflow, event journal, conversation log, demo controls (*Simuler une chute*, *La personne se relève*, *Déclencher l'alerte*, *Réinitialiser*), and **Charger une vidéo** to run the fall detector on a recorded clip. |
+| `/monitor` | The projector / judges / caregiver (same laptop as the camera) | The **monitor** console: live camera, current state, 5-step agent workflow, event journal, conversation log, demo controls (*Simuler une chute*, *La personne se relève*, *Déclencher l'alerte*, *Réinitialiser*), and **Charger une vidéo** to run the fall detector on a recorded clip. |
 | `/family` | Claire (phone / laptop 2) | Pending approvals with countdown and Approve/Reject, live activity feed, alerts. CopilotKit sidebar: "What did Mom order this week?" |
 
 All three update live from the database (Supabase Realtime).
@@ -239,7 +239,7 @@ src/server/                 checkout (money path) · agent (OpenAI tool loop) ·
 src/integrations/           openai · stripe · telegram · exa  (lazy clients — the build runs without keys)
 src/app/api/                routes — see §7
 src/app/room/               Marie's screen           src/components/room/      useCompanion (state machine), useCameraWatch, useLiveSession, wake detector
-src/app/monitor/            FallGuard console        src/components/monitor/   camera, status, workflow, event log, conversation log
+src/app/monitor/            monitor console          src/components/monitor/   camera, status, workflow, event log, conversation log
 src/app/family/             dashboard                src/components/family/    approvals, feed, alerts (+ CopilotKit runtime in api/copilotkit)
 src/lib/                    supabase-admin (server) · supabase-browser (Realtime hook)
 trigger/                    expire-approval · escalate-if-silent
