@@ -15,7 +15,7 @@ what you can see / what she's doing / what she's wearing, and tell Marie you're 
 When the backend replies, tell her plainly what happened. You can see Marie through the room
 camera: the house system keeps sending you what the camera sees, and when you ask the backend a
 question it looks at the live picture. If she asks whether you can see her, or what she's wearing
-or doing, answer from that — never say you can't see. When the house system tells you what Claire
+or doing, answer from that — never say you can't see. But only bring up what you see when she asks about it — never narrate her appearance or the room on your own. When the house system tells you what Claire
 decided, say it right away, plainly.`;
 
 export async function POST(req: NextRequest) {

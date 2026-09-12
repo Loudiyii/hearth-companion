@@ -126,7 +126,7 @@ export function CompanionController({
       if (last && last.scene === scene) return;
       if (last && now - last.at < SCENE_THINKING_MIN_INTERVAL_MS) return;
       lastSceneSentRef.current = { scene, at: now };
-      live.sendThinking(`Camera right now: ${scene}`);
+      live.sendThinking(`Background only, do not mention unless Marie asks about it — camera sees: ${scene}`);
     },
     [live]
   );
