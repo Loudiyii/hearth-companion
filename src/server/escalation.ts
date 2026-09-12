@@ -1,6 +1,6 @@
 import type { PersonOnFloorCandidateEvent } from "@/contracts";
 import { createIncident, updateIncident, getIncident, logActivity, getBudget } from "@/domain";
-import { sendIncidentAlert } from "@/integrations/telegram";
+import { sendIncidentAlert, sendHeadsUp } from "@/integrations/telegram";
 import { getOpenAI } from "@/integrations/openai";
 
 export type CheckInOutcome = "resolved_ok" | "escalated" | "ignored";
@@ -43,6 +43,14 @@ export async function handleFloorCandidate(
   await updateIncident(incident.id, { status: "CHECKING" });
   await logActivity(event.elderId, "incident_checking", "Waiting to hear back.", incident.id);
 
+  // Heads-up: family knows within seconds; the photo alert follows only if the check-in fails.
+  try {
+    const budget = await getBudget(event.elderId);
+    await sendHeadsUp(budget.approverChatId, "\u26a0\ufe0f Possible fall in the salon \u2014 Hearth is checking with Marie now.");
+  } catch (err) {
+    console.warn("Failed to send Telegram heads-up", err);
+  }
+
   try {
     const { escalateIfSilentTask } = await import("../../trigger/escalate-if-silent");
     await escalateIfSilentTask.trigger({ incidentId: incident.id }, { delay: "20s" });
@@ -69,6 +77,12 @@ export async function recordCheckInResponse(
     if (label === "ok") {
       await updateIncident(incidentId, { status: "RESOLVED_OK", elderResponse: text });
       await logActivity(incident.elderId, "incident_resolved_ok", "Responded and is okay.", incidentId);
+      try {
+        const budget = await getBudget(incident.elderId);
+        await sendHeadsUp(budget.approverChatId, "\u2705 False alarm \u2014 Marie says she is fine.");
+      } catch (err) {
+        console.warn("Failed to send Telegram all-clear", err);
+      }
       return { outcome: "resolved_ok", reason: "said she is okay" };
     }
     reason =

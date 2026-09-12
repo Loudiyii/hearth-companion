@@ -13,7 +13,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { CompanionEvent } from "@/contracts";
 
 const ELDER_ID = "marie";
-const SAMPLE_INTERVAL_MS = 4000;
+const CAPTURE_INTERVAL_MS = 1000;
+const ANALYZE_INTERVAL_MS = 2000;
+const BURST_FRAMES = 3;
+const DETECT_MAX_WIDTH = 640;
+const DETECT_JPEG_QUALITY = 0.6;
 const COOLDOWN_MS = 60000;
 const MAX_WIDTH = 1024;
 const JPEG_QUALITY = 0.85;
@@ -39,6 +43,7 @@ interface VisionResult {
   confidence: number;
   note: string;
   scene: string;
+  fell?: boolean;
 }
 
 const FALL_POSTURES = new Set(["on_floor", "lying"]);
@@ -159,11 +164,11 @@ export function useCameraWatch({
     };
   }, [stopStream, clearVideoFile]);
 
-  const captureFrame = useCallback((): string | null => {
+  const captureFrame = useCallback((maxWidth: number = MAX_WIDTH, quality: number = JPEG_QUALITY): string | null => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || !canvas || video.videoWidth === 0) return null;
-    const scale = Math.min(1, MAX_WIDTH / video.videoWidth);
+    const scale = Math.min(1, maxWidth / video.videoWidth);
     const width = Math.round(video.videoWidth * scale);
     const height = Math.round(video.videoHeight * scale);
     canvas.width = width;
@@ -171,7 +176,7 @@ export function useCameraWatch({
     const ctx = canvas.getContext("2d");
     if (!ctx) return null;
     ctx.drawImage(video, 0, 0, width, height);
-    return canvas.toDataURL("image/jpeg", JPEG_QUALITY);
+    return canvas.toDataURL("image/jpeg", quality);
   }, []);
 
   const runCandidateFlow = useCallback(
@@ -206,26 +211,36 @@ export function useCameraWatch({
     [onFloorCandidate]
   );
 
+  const burstRef = useRef<string[]>([]);
+  const inFlightRef = useRef(false);
+  const lastAnalyzeAtRef = useRef(0);
+
   useEffect(() => {
+    const strip = (dataUrl: string) => dataUrl.slice(dataUrl.indexOf(",") + 1);
     const interval = setInterval(async () => {
       if (inIncidentRef.current || Date.now() < cooldownUntilRef.current) return;
-      const dataUrl = captureFrame();
-      if (!dataUrl) return;
-      // Strip the "data:image/jpeg;base64," prefix — the server re-adds it,
-      // and this raw base64 payload is also what onFrame consumers expect.
-      const imageBase64 = dataUrl.slice(dataUrl.indexOf(",") + 1);
-      onFrame?.(imageBase64);
+      // Every second: a small detection frame into the rolling burst.
+      const small = captureFrame(DETECT_MAX_WIDTH, DETECT_JPEG_QUALITY);
+      if (!small) return;
+      burstRef.current = [...burstRef.current, strip(small)].slice(-BURST_FRAMES);
+      // Every ~2 s, one call with the whole burst (oldest first) — never two in flight.
+      if (inFlightRef.current || Date.now() - lastAnalyzeAtRef.current < ANALYZE_INTERVAL_MS) return;
+      inFlightRef.current = true;
+      lastAnalyzeAtRef.current = Date.now();
+      const hiRes = captureFrame();
+      if (hiRes) onFrame?.(strip(hiRes));
+      const frames = burstRef.current;
       try {
         const res = await fetch("/api/vision", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ elderId: ELDER_ID, imageBase64 }),
+          body: JSON.stringify({ elderId: ELDER_ID, frames }),
         });
         const result: VisionResult = await res.json();
         if (typeof result.scene === "string" && result.scene) {
           onScene?.(result.scene, Date.now());
         }
-        if (FALL_POSTURES.has(result.posture)) {
+        if (FALL_POSTURES.has(result.posture) || result.fell === true) {
           consecutiveFallsRef.current += 1;
         } else {
           consecutiveFallsRef.current = 0;
@@ -242,8 +257,10 @@ export function useCameraWatch({
         }
       } catch {
         // vision is best-effort; skip this sample
+      } finally {
+        inFlightRef.current = false;
       }
-    }, SAMPLE_INTERVAL_MS);
+    }, CAPTURE_INTERVAL_MS);
 
     return () => clearInterval(interval);
   }, [captureFrame, runCandidateFlow, onFrame, onScene]);

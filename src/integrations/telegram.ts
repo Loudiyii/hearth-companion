@@ -74,3 +74,8 @@ export async function editResult(
     // message may already be edited/deleted; ignore
   }
 }
+
+/** A short informational message with no buttons (heads-up at detection, all-clear afterwards). */
+export async function sendHeadsUp(chatId: string, text: string): Promise<void> {
+  await getBot().api.sendMessage(chatId, text);
+}

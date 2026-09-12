@@ -2,10 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getOpenAI } from "@/integrations/openai";
 
-const Body = z.object({
-  elderId: z.string(),
-  imageBase64: z.string().min(1),
-});
+const Body = z
+  .object({
+    elderId: z.string(),
+    imageBase64: z.string().min(1).optional(),
+    /** oldest first, spanning the last ~2-3 s */
+    frames: z.array(z.string().min(1)).min(1).max(5).optional(),
+  })
+  .refine((b) => b.imageBase64 || b.frames, { message: "imageBase64 or frames required" });
 
 const VisionResult = z.object({
   posture: z.enum(["standing", "sitting", "lying", "on_floor", "unknown"]),
@@ -13,17 +17,20 @@ const VisionResult = z.object({
   confidence: z.number(),
   note: z.string(),
   scene: z.string(),
+  fell: z.boolean().optional(),
 });
 
-const PROMPT = `Look at this single camera frame of a room. Report strictly as JSON with
-these exact keys: "posture" (one of "standing", "sitting", "lying", "on_floor",
-"unknown"), "moving" (boolean, whether the person appears to be in motion),
-"confidence" (number between 0 and 1), "note" (a short factual observation), and
-"scene" (one short, plain sentence describing what the camera sees about the
-person — where they are in the room, what they appear to be doing, and any
-notable clothing colour; use "No one visible." if nobody is in frame).
-Do not diagnose or speculate about health. If no person is visible, use posture
-"unknown" and low confidence.`;
+const PROMPT = `You are given camera frames of a room, oldest first, spanning the last
+few seconds (there may be only one). Report strictly as JSON with these exact
+keys, describing the LATEST frame and using the earlier ones for motion:
+"posture" (one of "standing", "sitting", "lying", "on_floor", "unknown"),
+"moving" (boolean), "fell" (boolean: true only if the sequence shows a sudden
+collapse or the person ending up on the floor unintentionally — not sitting
+down, kneeling, or stretching on purpose), "confidence" (0 to 1), "note" (a
+short factual observation), and "scene" (one short, plain sentence about the
+person — where they are, what they are doing, notable clothing colour; use
+"No one visible." if nobody is in frame). Do not diagnose or speculate about
+health. If no person is visible, use posture "unknown" and low confidence.`;
 
 export async function POST(req: NextRequest) {
   const json = await req.json().catch(() => null);
@@ -44,10 +51,10 @@ export async function POST(req: NextRequest) {
           role: "user",
           content: [
             { type: "text", text: PROMPT },
-            {
-              type: "image_url",
-              image_url: { url: `data:image/jpeg;base64,${parsed.data.imageBase64}` },
-            },
+            ...(parsed.data.frames ?? [parsed.data.imageBase64 as string]).map((b64) => ({
+              type: "image_url" as const,
+              image_url: { url: `data:image/jpeg;base64,${b64}`, detail: "low" as const },
+            })),
           ],
         },
       ],

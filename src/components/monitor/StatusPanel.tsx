@@ -14,6 +14,9 @@ function EyeIcon() {
   );
 }
 
+import { useEffect, useRef } from "react";
+import type { ConversationEntry } from "./useConversationLog";
+
 export function StatusPanel({
   incidentPhase,
   liveState,
@@ -23,6 +26,7 @@ export function StatusPanel({
   onPersonGotUp,
   onTriggerAlert,
   onReset,
+  conversation,
 }: {
   incidentPhase: IncidentPhase;
   liveState: LiveSessionState;
@@ -32,6 +36,7 @@ export function StatusPanel({
   onPersonGotUp: () => void;
   onTriggerAlert: () => void;
   onReset: () => void;
+  conversation: ConversationEntry[];
 }) {
   const pill = statePill(incidentPhase, liveState);
   const { title, line } = phaseHeadline(incidentPhase);
@@ -99,6 +104,35 @@ export function StatusPanel({
           </div>
         </div>
       )}
+
+      <ConversationLog entries={conversation} />
+    </div>
+  );
+}
+
+function ConversationLog({ entries }: { entries: ConversationEntry[] }) {
+  const endRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ block: "nearest" });
+  }, [entries.length]);
+  return (
+    <div className="mt-5 border-t border-[#1c2a36] pt-4">
+      <p className="mb-2 text-[11px] font-medium tracking-wider text-[#7d8b99]">CONVERSATION</p>
+      <div className="max-h-[38vh] space-y-2 overflow-y-auto pr-1 text-sm">
+        {entries.length === 0 && <p className="text-xs text-[#7d8b99]">Aucun échange pour l&rsquo;instant.</p>}
+        {entries.map((e) => (
+          <div key={e.id} className="flex gap-2">
+            <span className="shrink-0 font-mono text-[11px] text-[#7d8b99]">
+              {new Date(e.at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+            </span>
+            <p className={e.role === "hearth" ? "text-[#2dd4bf]" : "text-[#e6edf3]"}>
+              <span className="mr-1 text-[#7d8b99]">{e.role === "hearth" ? "Hearth" : "Marie"} ·</span>
+              {e.text}
+            </p>
+          </div>
+        ))}
+        <div ref={endRef} />
+      </div>
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useCompanion } from "@/components/room/useCompanion";
+import { useConversationLog } from "@/components/monitor/useConversationLog";
 import { CameraPanel } from "@/components/monitor/CameraPanel";
 import { StatusPanel } from "@/components/monitor/StatusPanel";
 import { WorkflowPanel } from "@/components/monitor/WorkflowPanel";
@@ -23,7 +24,8 @@ export default function MonitorPage() {
   // Destructured once, here, in the same component that owns `useCompanion()` —
   // mirrors CompanionController.tsx, which passes discrete fields (never the
   // whole `camera`/`companion` object) down to presentational children.
-  const { status, liveState, incident, lastSample, camera, actions, audioRef } = companion;
+  const { status, liveState, incident, lastSample, camera, actions, audioRef, captions } = companion;
+  const conversation = useConversationLog(captions);
 
   return (
     <div className="min-h-screen w-full bg-[#0a1118] px-4 py-4 text-[#e6edf3] sm:px-6 sm:py-6">
@@ -71,6 +73,7 @@ export default function MonitorPage() {
           onPersonGotUp={actions.personGotUp}
           onTriggerAlert={actions.triggerAlert}
           onReset={actions.reset}
+          conversation={conversation}
         />
       </div>
 
