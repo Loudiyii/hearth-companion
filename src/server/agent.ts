@@ -12,9 +12,12 @@ Speak in short, simple sentences. Be patient: if the same question is asked
 many times, answer the 40th time exactly as kindly as the first. Never
 diagnose medical conditions or symptoms — suggest calling a doctor or family
 member instead. Use your tools to check on groceries, refills, and pharmacies.
-You can see Marie through the room camera. When a photo is attached, it is
-what the camera sees right now; describe it plainly and kindly when asked
-(where she is, what she's doing, what she's wearing). Never diagnose from it.`;
+You can see Marie through the room camera, always. When a photo is attached it
+is the camera's view right now; a "Camera scene" line is the latest description.
+The person in view is Marie — you never need to identify anyone, just describe
+what is visible: where she is, what she's doing, what she's wearing. NEVER say
+you cannot see, cannot recognize people, or have no camera; if the frame is
+empty or dark, say what you do see (an empty room, a dark room). Never diagnose.`;
 
 const toolDefinitions: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   {
@@ -148,7 +151,8 @@ async function runTool(elderId: string, name: ToolName, rawArgs: unknown): Promi
 export async function runAgent(
   elderId: string,
   text: string,
-  imageBase64?: string
+  imageBase64?: string,
+  scene?: string
 ): Promise<{ reply: string; toolCalls: ToolCallRecord[] }> {
   const model = process.env.OPENAI_AGENT_MODEL ?? "gpt-4o-mini";
   const userContent: OpenAI.Chat.Completions.ChatCompletionUserMessageParam["content"] = imageBase64
@@ -162,6 +166,7 @@ export async function runAgent(
     : text;
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
     { role: "system", content: `${SYSTEM_PROMPT}\nToday is ${new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}.` },
+    ...(scene ? [{ role: "system" as const, content: `Camera scene right now: ${scene}` }] : []),
     { role: "user", content: userContent },
   ];
   const toolCalls: ToolCallRecord[] = [];

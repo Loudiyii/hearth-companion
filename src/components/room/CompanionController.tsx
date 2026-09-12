@@ -104,10 +104,11 @@ export function CompanionController({
 
   // --- ambient sight (silent scene updates + latest frame for delegation) --
   const latestFrameRef = useRef<string | null>(null);
+  const latestSceneRef = useRef<string | null>(null);
   const lastSceneSentRef = useRef<{ scene: string; at: number } | null>(null);
 
   useEffect(() => {
-    live.setFrameProvider(() => latestFrameRef.current);
+    live.setFrameProvider(() => ({ frame: latestFrameRef.current, scene: latestSceneRef.current }));
     return () => live.setFrameProvider(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -118,6 +119,7 @@ export function CompanionController({
 
   const handleScene = useCallback(
     (scene: string) => {
+      latestSceneRef.current = scene;
       if (live.state !== "awake") return;
       const last = lastSceneSentRef.current;
       const now = Date.now();

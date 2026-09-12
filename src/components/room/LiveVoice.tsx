@@ -56,7 +56,7 @@ export interface UseLiveSessionResult {
    * `null` to clear. Least-invasive way for CompanionController to hand
    * LiveVoice a live-updating frame source without re-rendering on every frame.
    */
-  setFrameProvider: (provider: (() => string | null) | null) => void;
+  setFrameProvider: (provider: (() => { frame: string | null; scene: string | null }) | null) => void;
 }
 
 /**
@@ -86,9 +86,9 @@ export function useLiveSession(
   const turnBufferRef = useRef("");
   const turnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const utteranceSubscribersRef = useRef(new Set<(text: string) => void>());
-  const frameProviderRef = useRef<(() => string | null) | null>(null);
+  const frameProviderRef = useRef<(() => { frame: string | null; scene: string | null }) | null>(null);
 
-  const setFrameProvider = useCallback((provider: (() => string | null) | null) => {
+  const setFrameProvider = useCallback((provider: (() => { frame: string | null; scene: string | null }) | null) => {
     frameProviderRef.current = provider;
   }, []);
 
@@ -189,7 +189,9 @@ export function useLiveSession(
       const text = userBufferRef.current.trim();
       userBufferRef.current = "";
       try {
-        const frame = frameProviderRef.current?.() ?? null;
+        const sight = frameProviderRef.current?.() ?? null;
+        const frame = sight?.frame ?? null;
+        const scene = sight?.scene ?? undefined;
         // Base64 expands ~4/3 over raw bytes, so ~200KB of base64 text is the
         // budget requested — comfortably under typical request body limits.
         const imageBase64 = frame && frame.length < 200_000 ? frame : undefined;
@@ -200,6 +202,7 @@ export function useLiveSession(
             elderId: ELDER_ID,
             text: text || "(no speech captured)",
             ...(imageBase64 ? { imageBase64 } : {}),
+            ...(scene ? { scene } : {}),
           }),
         });
         if (!res.ok) throw new Error("agent request failed");
