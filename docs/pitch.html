@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Hearth Companion — Pitch</title>
+<style>
+  @page { size: A4; margin: 18mm 18mm 16mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: "Segoe UI", -apple-system, Helvetica, Arial, sans-serif; color: #182230; font-size: 11.5pt; line-height: 1.5; }
+  h1 { font-size: 30pt; margin: 0 0 2px; letter-spacing: -0.01em; }
+  .sub { color: #5B6672; font-size: 12.5pt; margin: 0 0 18px; }
+  .pitch { border-left: 4px solid #0E7C86; background: #EEF6F7; padding: 12px 16px; margin: 0 0 22px; font-size: 12.5pt; }
+  .pitch p { margin: 0 0 8px; }
+  .pitch p:last-child { margin: 0; }
+  h2 { font-size: 10.5pt; margin: 0 0 8px; color: #0E7C86; text-transform: uppercase; letter-spacing: 0.08em; }
+  .flows { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 22px; }
+  .flow { border: 1px solid #D3DAE1; border-radius: 6px; padding: 10px 12px; font-size: 10.5pt; }
+  .flow.money { border-top: 3px solid #C9791A; }
+  .flow.sight { border-top: 3px solid #0E7C86; }
+  .flow.fall  { border-top: 3px solid #C43D2B; }
+  .flow b { display: block; font-size: 11pt; margin-bottom: 4px; }
+  .flow i { color: #3b4854; }
+  .rules { margin: 0 0 22px 18px; padding: 0; }
+  .rules li { margin: 3px 0; }
+  .line { font-size: 15pt; font-weight: 600; text-align: center; margin: 6px 0 22px; letter-spacing: -0.005em; }
+  .links { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 24px; font-size: 10.5pt; }
+  .links b { display: inline-block; width: 52px; color: #5B6672; }
+  .foot { margin-top: 18px; color: #5B6672; font-size: 9pt; }
+</style>
+</head>
+<body>
+
+<h1>Hearth Companion</h1>
+<p class="sub">An agent in the room that acts within limits, asks above them, and asks <i>her</i> before it alarms anyone.</p>
+
+<div class="pitch">
+  <p>AI agents are about to start acting — and spending — for people. So we built one for the person who needs a guardrail most: an older adult living alone, who can't use a phone.</p>
+  <p>Hearth lives in her room — a laptop's camera, mic and speaker. She talks; it sees her, runs her errands, and pays — but only within a weekly limit her family set. Above it, it stops: her daughter gets a tap-to-approve on Telegram. One tap, one charge, never twice.</p>
+  <p>And if she falls, the camera doesn't panic anyone. Hearth asks her first: <i>"Marie, are you okay?"</i> Only silence, or a call for help, reaches her daughter — with a photo, in seconds.</p>
+</div>
+
+<h2>Three things it does</h2>
+<div class="flows">
+  <div class="flow money"><b>Money, with a leash</b><i>"Order my groceries for the week."</i> Basket €84 &gt; limit €60 → Claire approves on Telegram → one Stripe charge → Hearth tells Marie when it arrives.</div>
+  <div class="flow sight"><b>It sees her</b><i>"Do I have my glasses on?"</i> Answers from the live camera frame. Only talks about the room when asked.</div>
+  <div class="flow fall"><b>Falls: ask first</b>Two confirmations (~4 s) → heads-up to Claire → Hearth asks her → "I'm fine" closes it; silence or "help" → photo alert + "I'm on it".</div>
+</div>
+
+<h2>Rules in code, not in the prompt</h2>
+<ul class="rules">
+  <li>The vulnerable person is never the sole approver of a large spend.</li>
+  <li>One approval, one charge — consumed in a single atomic database statement; a second tap charges nothing.</li>
+  <li>The camera never alarms directly; emergency services are never called automatically — a human decides.</li>
+</ul>
+
+<div class="line">Act within limits · Ask above them · Bring a human in only when it matters.</div>
+
+<h2>Links</h2>
+<div class="links">
+  <div><b>Live</b> https://hearth-companion-cyan.vercel.app</div>
+  <div><b>Code</b> https://github.com/Loudiyii/hearth-companion</div>
+  <div><b>Stack</b> OpenAI GPT-Live + gpt-5.6-luna · Supabase · Vercel · Telegram · Stripe (test) · Trigger.dev · CopilotKit</div>
+  <div><b>Built at</b> AI Tinkerers "Agents, Everywhere" — Paris, 12 Sept 2026</div>
+</div>
+
+<p class="foot">Stripe is test mode against a simulated shop. Falls are the case; bounded agency is the idea.</p>
+
+</body>
+</html>
