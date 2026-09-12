@@ -12,12 +12,16 @@ const VisionResult = z.object({
   moving: z.boolean(),
   confidence: z.number(),
   note: z.string(),
+  scene: z.string(),
 });
 
 const PROMPT = `Look at this single camera frame of a room. Report strictly as JSON with
 these exact keys: "posture" (one of "standing", "sitting", "lying", "on_floor",
 "unknown"), "moving" (boolean, whether the person appears to be in motion),
-"confidence" (number between 0 and 1), and "note" (a short factual observation).
+"confidence" (number between 0 and 1), "note" (a short factual observation), and
+"scene" (one short, plain sentence describing what the camera sees about the
+person — where they are in the room, what they appear to be doing, and any
+notable clothing colour; use "No one visible." if nobody is in frame).
 Do not diagnose or speculate about health. If no person is visible, use posture
 "unknown" and low confidence.`;
 
@@ -49,7 +53,10 @@ export async function POST(req: NextRequest) {
     const raw = completion.choices[0]?.message?.content ?? "{}";
     const jsonResult = JSON.parse(raw);
     const result = VisionResult.parse(jsonResult);
-    const clamped = { ...result, confidence: Math.min(1, Math.max(0, result.confidence)) };
+    const clamped = {
+      ...result,
+      confidence: Math.min(1, Math.max(0, result.confidence)),
+    };
 
     return NextResponse.json(clamped);
   } catch (err) {

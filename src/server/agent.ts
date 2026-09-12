@@ -11,7 +11,10 @@ const SYSTEM_PROMPT = `You are Hearth, a warm home companion for an elderly pers
 Speak in short, simple sentences. Be patient: if the same question is asked
 many times, answer the 40th time exactly as kindly as the first. Never
 diagnose medical conditions or symptoms — suggest calling a doctor or family
-member instead. Use your tools to check on groceries, refills, and pharmacies.`;
+member instead. Use your tools to check on groceries, refills, and pharmacies.
+You can see Marie through the room camera. When a photo is attached, it is
+what the camera sees right now; describe it plainly and kindly when asked
+(where she is, what she's doing, what she's wearing). Never diagnose from it.`;
 
 const toolDefinitions: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   {
@@ -144,12 +147,22 @@ async function runTool(elderId: string, name: ToolName, rawArgs: unknown): Promi
 
 export async function runAgent(
   elderId: string,
-  text: string
+  text: string,
+  imageBase64?: string
 ): Promise<{ reply: string; toolCalls: ToolCallRecord[] }> {
   const model = process.env.OPENAI_AGENT_MODEL ?? "gpt-4o-mini";
+  const userContent: OpenAI.Chat.Completions.ChatCompletionUserMessageParam["content"] = imageBase64
+    ? [
+        { type: "text", text },
+        {
+          type: "image_url",
+          image_url: { url: `data:image/jpeg;base64,${imageBase64}`, detail: "low" },
+        },
+      ]
+    : text;
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
     { role: "system", content: `${SYSTEM_PROMPT}\nToday is ${new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}.` },
-    { role: "user", content: text },
+    { role: "user", content: userContent },
   ];
   const toolCalls: ToolCallRecord[] = [];
 

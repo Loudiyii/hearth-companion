@@ -17,6 +17,7 @@ interface VisionResult {
   moving: boolean;
   confidence: number;
   note: string;
+  scene: string;
 }
 
 const FALL_POSTURES = new Set(["on_floor", "lying"]);
@@ -29,6 +30,8 @@ export interface FloorCandidatePayload {
 export function CameraWatch({
   onStatusChange,
   onFloorCandidate,
+  onScene,
+  onFrame,
 }: {
   /** Fallback self-contained UI status (unused once onFloorCandidate is provided). */
   onStatusChange?: (status: CompanionStatus | null) => void;
@@ -37,6 +40,10 @@ export function CameraWatch({
    * instead of CameraWatch speaking the question and listening for a reply itself.
    */
   onFloorCandidate?: (payload: FloorCandidatePayload) => void;
+  /** Called with each sample's plain-language scene description. */
+  onScene?: (scene: string, at: number) => void;
+  /** Called with each sample's latest JPEG frame (base64, no data: prefix). */
+  onFrame?: (base64: string) => void;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -148,8 +155,12 @@ export function CameraWatch({
   useEffect(() => {
     const interval = setInterval(async () => {
       if (inIncidentRef.current || Date.now() < cooldownUntilRef.current) return;
-      const imageBase64 = captureFrame();
-      if (!imageBase64) return;
+      const dataUrl = captureFrame();
+      if (!dataUrl) return;
+      // Strip the "data:image/jpeg;base64," prefix — the server re-adds it,
+      // and this raw base64 payload is also what onFrame/onScene consumers expect.
+      const imageBase64 = dataUrl.slice(dataUrl.indexOf(",") + 1);
+      onFrame?.(imageBase64);
       try {
         const res = await fetch("/api/vision", {
           method: "POST",
@@ -157,6 +168,9 @@ export function CameraWatch({
           body: JSON.stringify({ elderId: ELDER_ID, imageBase64 }),
         });
         const result: VisionResult = await res.json();
+        if (typeof result.scene === "string" && result.scene) {
+          onScene?.(result.scene, Date.now());
+        }
         if (FALL_POSTURES.has(result.posture)) {
           consecutiveFallsRef.current += 1;
         } else {
@@ -171,7 +185,7 @@ export function CameraWatch({
     }, SAMPLE_INTERVAL_MS);
 
     return () => clearInterval(interval);
-  }, [captureFrame, runIncidentFlow]);
+  }, [captureFrame, runIncidentFlow, onFrame, onScene]);
 
   return (
     <>

@@ -48,6 +48,8 @@ const IDLE_CHECK_INTERVAL_MS = 5_000;
 const CHECK_IN_WINDOW_MS = 20_000;
 /** Never speak the same activity kind's outcome twice within this window. */
 const OUTCOME_DEBOUNCE_MS = 10_000;
+/** Never push a fresh "Camera right now: …" thinking note more often than this. */
+const SCENE_THINKING_MIN_INTERVAL_MS = 15_000;
 
 /** Spoken outcomes for backend events Marie should hear about as soon as they happen. */
 const OUTCOME_SENTENCES: Partial<Record<ActivityKind, string>> = {
@@ -99,6 +101,33 @@ export function CompanionController({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const live = useLiveSession(handleActivity, audioRef);
   const liveState = live.state;
+
+  // --- ambient sight (silent scene updates + latest frame for delegation) --
+  const latestFrameRef = useRef<string | null>(null);
+  const lastSceneSentRef = useRef<{ scene: string; at: number } | null>(null);
+
+  useEffect(() => {
+    live.setFrameProvider(() => latestFrameRef.current);
+    return () => live.setFrameProvider(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleFrame = useCallback((base64: string) => {
+    latestFrameRef.current = base64;
+  }, []);
+
+  const handleScene = useCallback(
+    (scene: string) => {
+      if (live.state !== "awake") return;
+      const last = lastSceneSentRef.current;
+      const now = Date.now();
+      if (last && last.scene === scene) return;
+      if (last && now - last.at < SCENE_THINKING_MIN_INTERVAL_MS) return;
+      lastSceneSentRef.current = { scene, at: now };
+      live.sendThinking(`Camera right now: ${scene}`);
+    },
+    [live]
+  );
 
   // --- voice wake ---------------------------------------------------------
   const onVoiceWake = useCallback(() => {
@@ -228,7 +257,7 @@ export function CompanionController({
 
   return (
     <>
-      <CameraWatch onFloorCandidate={handleFloorCandidate} />
+      <CameraWatch onFloorCandidate={handleFloorCandidate} onScene={handleScene} onFrame={handleFrame} />
       <audio ref={audioRef} autoPlay />
       {(userCaption || assistantCaption) && (
         <div className="w-full max-w-2xl space-y-1 text-center">

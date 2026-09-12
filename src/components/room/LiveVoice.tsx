@@ -46,8 +46,17 @@ export interface UseLiveSessionResult {
   sendInstructions: (content: string) => void;
   /** Sends a backend-originated line for the model to paraphrase aloud. No-op unless the data channel is open. */
   sendCommentary: (content: string) => void;
+  /** Sends silent context the model may use when relevant — never spoken on its own. */
+  sendThinking: (content: string) => void;
   /** Fires with the accumulated transcript once a user turn ends (~1.2s silence gap). */
   onUserUtterance: (cb: (text: string) => void) => () => void;
+  /**
+   * Registers a function returning the latest camera frame (base64 JPEG, no
+   * data: prefix) so client-delegation requests can attach it. Call with
+   * `null` to clear. Least-invasive way for CompanionController to hand
+   * LiveVoice a live-updating frame source without re-rendering on every frame.
+   */
+  setFrameProvider: (provider: (() => string | null) | null) => void;
 }
 
 /**
@@ -77,6 +86,11 @@ export function useLiveSession(
   const turnBufferRef = useRef("");
   const turnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const utteranceSubscribersRef = useRef(new Set<(text: string) => void>());
+  const frameProviderRef = useRef<(() => string | null) | null>(null);
+
+  const setFrameProvider = useCallback((provider: (() => string | null) | null) => {
+    frameProviderRef.current = provider;
+  }, []);
 
   const onActivityRef = useRef(onActivity);
   useEffect(() => {
@@ -124,6 +138,18 @@ export function useLiveSession(
     [send]
   );
 
+  const sendThinking = useCallback(
+    (content: string) => {
+      send({
+        type: "session.thinking.append",
+        event_id: crypto.randomUUID(),
+        delegation_id: null,
+        content,
+      });
+    },
+    [send]
+  );
+
   const onUserUtterance = useCallback((cb: (text: string) => void) => {
     utteranceSubscribersRef.current.add(cb);
     return () => {
@@ -163,10 +189,18 @@ export function useLiveSession(
       const text = userBufferRef.current.trim();
       userBufferRef.current = "";
       try {
+        const frame = frameProviderRef.current?.() ?? null;
+        // Base64 expands ~4/3 over raw bytes, so ~200KB of base64 text is the
+        // budget requested — comfortably under typical request body limits.
+        const imageBase64 = frame && frame.length < 200_000 ? frame : undefined;
         const res = await fetch("/api/agent", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ elderId: ELDER_ID, text: text || "(no speech captured)" }),
+          body: JSON.stringify({
+            elderId: ELDER_ID,
+            text: text || "(no speech captured)",
+            ...(imageBase64 ? { imageBase64 } : {}),
+          }),
         });
         if (!res.ok) throw new Error("agent request failed");
         const data = await res.json();
@@ -349,6 +383,8 @@ export function useLiveSession(
     end,
     sendInstructions,
     sendCommentary,
+    sendThinking,
     onUserUtterance,
+    setFrameProvider,
   };
 }

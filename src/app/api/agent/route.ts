@@ -5,6 +5,7 @@ import { runAgent } from "@/server/agent";
 const Body = z.object({
   elderId: z.string(),
   text: z.string().min(1),
+  imageBase64: z.string().min(1).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -15,7 +16,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await runAgent(parsed.data.elderId, parsed.data.text);
+    const result = await runAgent(parsed.data.elderId, parsed.data.text, parsed.data.imageBase64);
     return NextResponse.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
