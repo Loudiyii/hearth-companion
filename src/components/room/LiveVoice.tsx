@@ -44,6 +44,8 @@ export interface UseLiveSessionResult {
   start: (opts?: { instructionsAppend?: string }) => Promise<void>;
   end: () => void;
   sendInstructions: (content: string) => void;
+  /** Sends a backend-originated line for the model to paraphrase aloud. No-op unless the data channel is open. */
+  sendCommentary: (content: string) => void;
   /** Fires with the accumulated transcript once a user turn ends (~1.2s silence gap). */
   onUserUtterance: (cb: (text: string) => void) => () => void;
 }
@@ -105,6 +107,18 @@ export function useLiveSession(
         event_id: crypto.randomUUID(),
         delegation_id: null,
         content: content.slice(0, MAX_INSTRUCTIONS_CHARS),
+      });
+    },
+    [send]
+  );
+
+  const sendCommentary = useCallback(
+    (content: string) => {
+      send({
+        type: "session.commentary.append",
+        event_id: crypto.randomUUID(),
+        delegation_id: null,
+        content: content.slice(0, MAX_COMMENTARY_CHARS),
       });
     },
     [send]
@@ -334,6 +348,7 @@ export function useLiveSession(
     start,
     end,
     sendInstructions,
+    sendCommentary,
     onUserUtterance,
   };
 }

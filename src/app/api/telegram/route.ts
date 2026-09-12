@@ -15,6 +15,7 @@ type TelegramUpdate = {
 export async function POST(req: NextRequest) {
   const secret = req.headers.get("x-telegram-bot-api-secret-token");
   if (secret !== process.env.TELEGRAM_WEBHOOK_SECRET) {
+    console.warn("Telegram webhook: secret token mismatch, ignoring update");
     return NextResponse.json({ ok: true });
   }
 
@@ -38,6 +39,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const result = await handleTap({ action: decoded.action, id, actorId });
+    console.info(`Telegram tap ${decoded.action} ${id}: ${result.ok ? "ok" : "refused"} — ${result.message}`);
     await getBot().api.answerCallbackQuery(cq.id, { text: result.message }).catch(() => {});
     await editResult(chatId, messageId, result.message);
   } catch (err) {

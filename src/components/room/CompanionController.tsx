@@ -40,10 +40,23 @@ import { CameraWatch, type FloorCandidatePayload } from "./CameraWatch";
 import { useLiveSession, type LiveActivityKind } from "./LiveVoice";
 import { useWakeDetector } from "./useWakeDetector";
 import type { CompanionStatus } from "./StatusWord";
+import { useRealtimeTable } from "@/lib/supabase-browser";
+import type { Activity, ActivityKind } from "@/contracts";
 
 const IDLE_TIMEOUT_MS = 45_000;
 const IDLE_CHECK_INTERVAL_MS = 5_000;
 const CHECK_IN_WINDOW_MS = 20_000;
+/** Never speak the same activity kind's outcome twice within this window. */
+const OUTCOME_DEBOUNCE_MS = 10_000;
+
+/** Spoken outcomes for backend events Marie should hear about as soon as they happen. */
+const OUTCOME_SENTENCES: Partial<Record<ActivityKind, string>> = {
+  payment_succeeded: "Claire approved the order. The groceries are paid for and on their way.",
+  approval_rejected: "Claire said no to this order for now. Nothing was charged.",
+  approval_expired: "Claire didn't answer in time, so the order was not placed. We can try again later.",
+  payment_failed: "Claire approved it, but the payment didn't go through. Nothing was charged; we can try again.",
+  incident_acknowledged: "Claire has seen the alert and is on her way.",
+};
 
 function activityToStatus(kind: LiveActivityKind): CompanionStatus {
   switch (kind) {
@@ -96,6 +109,50 @@ export function CompanionController({
 
   const wakeEnabled = liveState === "asleep";
   const { error: wakeError } = useWakeDetector({ enabled: wakeEnabled, onWake: onVoiceWake });
+
+  // --- backend outcomes (approve/reject/pay/ack) speak into the live session ------------
+  const { rows: activityRows, loading: activityLoading } = useRealtimeTable<Activity>("activity", {
+    filter: { elder_id: "marie" },
+    limit: 20,
+  });
+  // Rows already present when the page loaded must never be replayed as "news" — only
+  // insertions after this cutoff (set once, from the first load) are spoken aloud.
+  const cutoffAtRef = useRef<string | null>(null);
+  const processedIdsRef = useRef<Set<string>>(new Set());
+  const lastSpokenAtRef = useRef<Map<ActivityKind, number>>(new Map());
+
+  useEffect(() => {
+    if (cutoffAtRef.current !== null || activityLoading) return;
+    cutoffAtRef.current = activityRows[0]?.createdAt ?? new Date(0).toISOString();
+  }, [activityLoading, activityRows]);
+
+  useEffect(() => {
+    const cutoff = cutoffAtRef.current;
+    if (cutoff === null) return;
+
+    const freshRows = activityRows
+      .filter((row) => row.createdAt > cutoff && !processedIdsRef.current.has(row.id))
+      .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
+
+    for (const row of freshRows) {
+      processedIdsRef.current.add(row.id);
+      if (row.createdAt > cutoffAtRef.current!) cutoffAtRef.current = row.createdAt;
+
+      const sentence = OUTCOME_SENTENCES[row.kind];
+      if (!sentence) continue;
+
+      const now = Date.now();
+      const lastSpokenAt = lastSpokenAtRef.current.get(row.kind) ?? 0;
+      if (now - lastSpokenAt < OUTCOME_DEBOUNCE_MS) continue;
+      lastSpokenAtRef.current.set(row.kind, now);
+
+      if (live.state === "awake") {
+        live.sendCommentary(sentence);
+      } else {
+        void live.start({ instructionsAppend: `Speak first: tell Marie that ${sentence}` });
+      }
+    }
+  }, [activityRows, live]);
 
   // --- vision wake ---------------------------------------------------------
   const handleFloorCandidate = useCallback(
